@@ -1,28 +1,18 @@
 import { BaseWindow, WebContentsView, shell } from 'electron'
 import type { ShellState, TabState } from '../shared/types'
-import {
-  SIDEBAR_WIDTH,
-  TABBAR_HEIGHT,
-  DEFAULT_PROFILE_ID
-} from '../shared/layout'
-import {
-  createProfile,
-  ensureDefaultProfile,
-  listProfiles,
-  sessionFor
-} from './sessions'
+import { CHROME_HEIGHT } from '../shared/layout'
+import { browserSession } from './sessions'
 
 interface Tab {
   id: string
-  profileId: string
   view: WebContentsView
 }
 
 /**
- * Owns the BaseWindow, the chrome (React UI) view, and one WebContentsView per
- * embedded tab. The chrome view spans the whole window; each content view is
- * layered on top, occupying the region to the right of the sidebar and below the
- * tab bar. Only the active tab's view is visible.
+ * Owns the BaseWindow, the chrome (React tabs + toolbar) view, and one
+ * WebContentsView per tab. The chrome view spans the whole window; each content
+ * view is layered on top, occupying the region below the chrome. Only the active
+ * tab's view is visible.
  *
  * This is the architecture the deprecated BrowserView pattern was replaced by in
  * Electron 30+ (BaseWindow + WebContentsView).
@@ -33,16 +23,11 @@ export class TabManager {
   private tabs = new Map<string, Tab>()
   private order: string[] = []
   private activeTabId: string | null = null
-  private activeProfileId = DEFAULT_PROFILE_ID
 
   constructor(window: BaseWindow, chrome: WebContentsView) {
     this.window = window
     this.chrome = chrome
-    ensureDefaultProfile()
-
     this.window.on('resize', () => this.layout())
-    // BaseWindow does not emit 'maximize'/'unmaximize' bounds reliably on every
-    // platform until the next resize tick; relayout defensively on focus too.
     this.window.on('focus', () => this.layout())
   }
 
@@ -51,10 +36,10 @@ export class TabManager {
   private contentBounds() {
     const [width, height] = this.window.getContentSize()
     return {
-      x: SIDEBAR_WIDTH,
-      y: TABBAR_HEIGHT,
-      width: Math.max(0, width - SIDEBAR_WIDTH),
-      height: Math.max(0, height - TABBAR_HEIGHT)
+      x: 0,
+      y: CHROME_HEIGHT,
+      width,
+      height: Math.max(0, height - CHROME_HEIGHT)
     }
   }
 
@@ -72,20 +57,19 @@ export class TabManager {
 
   // ---- tabs -------------------------------------------------------------
 
-  createTab(url: string, profileId = this.activeProfileId, activate = true): string {
+  createTab(url: string, activate = true): string {
     const id = `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
     const view = new WebContentsView({
       webPreferences: {
-        session: sessionFor(profileId),
-        // Embedded content is untrusted third-party web pages: keep it sandboxed
-        // with no Node integration and context isolation on.
+        session: browserSession(),
+        // Web pages are untrusted: sandbox, context isolation on, no Node.
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false
       }
     })
 
-    const tab: Tab = { id, profileId, view }
+    const tab: Tab = { id, view }
     this.tabs.set(id, tab)
     this.order.push(id)
     this.window.contentView.addChildView(view)
@@ -115,16 +99,15 @@ export class TabManager {
     wc.on('did-finish-load', update)
     wc.on('did-fail-load', update)
 
-    // Open target=_blank / window.open as new tabs in the same profile rather
-    // than spawning detached popups. OAuth that demands a real top-level browser
-    // (e.g. Google, which blocks embedded webviews) is pushed to the system
-    // browser instead — see the report's Risk 2 de-risking note.
+    // Open target=_blank / window.open as new tabs. OAuth that demands a real
+    // top-level browser (e.g. Google, which blocks embedded webviews) is pushed
+    // to the system browser instead.
     wc.setWindowOpenHandler(({ url }) => {
       if (requiresSystemBrowser(url)) {
         shell.openExternal(url).catch(() => {})
         return { action: 'deny' }
       }
-      this.createTab(url, tab.profileId, true)
+      this.createTab(url, true)
       return { action: 'deny' }
     })
   }
@@ -133,7 +116,6 @@ export class TabManager {
     if (!this.tabs.has(tabId)) return
     this.activeTabId = tabId
     const tab = this.tabs.get(tabId)!
-    this.activeProfileId = tab.profileId
     // Bring the active view to the top of the z-order, above the chrome.
     this.window.contentView.addChildView(tab.view)
     this.layout()
@@ -174,19 +156,6 @@ export class TabManager {
     this.tabs.get(tabId)?.view.webContents.reload()
   }
 
-  // ---- profiles ---------------------------------------------------------
-
-  createProfile(name: string) {
-    const profile = createProfile(name)
-    this.emitState()
-    return profile
-  }
-
-  activateProfile(profileId: string): void {
-    this.activeProfileId = profileId
-    this.emitState()
-  }
-
   // ---- state broadcast --------------------------------------------------
 
   getState(): ShellState {
@@ -197,7 +166,6 @@ export class TabManager {
         const wc = t.view.webContents
         return {
           id: t.id,
-          profileId: t.profileId,
           title: wc.getTitle() || 'New tab',
           url: wc.getURL(),
           isLoading: wc.isLoading(),
@@ -206,12 +174,7 @@ export class TabManager {
         }
       })
 
-    return {
-      profiles: listProfiles(),
-      tabs,
-      activeTabId: this.activeTabId,
-      activeProfileId: this.activeProfileId
-    }
+    return { tabs, activeTabId: this.activeTabId }
   }
 
   private emitState(): void {

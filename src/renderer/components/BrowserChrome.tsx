@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { ShellState, TabState } from '../../shared/types'
+import type { ShellState } from '../../shared/types'
+import { HOME_URL } from '../../shared/layout'
 
-export function TabBar({
-  state,
-  activeTab
-}: {
-  state: ShellState
-  activeTab: TabState | null
-}): JSX.Element {
+export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
+  const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
+
   const [urlDraft, setUrlDraft] = useState('')
   const [editing, setEditing] = useState(false)
 
@@ -18,13 +15,17 @@ export function TabBar({
 
   const submitUrl = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!activeTab) return
-    window.helixis.tabs.navigate(activeTab.id, urlDraft)
+    if (!activeTab) {
+      window.helixis.tabs.create({ url: urlDraft })
+    } else {
+      window.helixis.tabs.navigate(activeTab.id, urlDraft)
+    }
     setEditing(false)
+    ;(document.activeElement as HTMLElement | null)?.blur()
   }
 
   return (
-    <div className="tabbar">
+    <div className="chrome">
       <div className="tabstrip">
         {state.tabs.map((tab) => (
           <div
@@ -34,11 +35,12 @@ export function TabBar({
             title={tab.url}
           >
             <span className="tab-title">
-              {tab.isLoading ? '…' : ''}
+              {tab.isLoading ? '◌ ' : ''}
               {tab.title || 'New tab'}
             </span>
             <button
               className="tab-close"
+              title="Close tab"
               onClick={(e) => {
                 e.stopPropagation()
                 window.helixis.tabs.close(tab.id)
@@ -51,26 +53,32 @@ export function TabBar({
         <button
           className="tab-new"
           title="New tab"
-          onClick={() => window.helixis.tabs.create({ url: 'https://www.google.com' })}
+          onClick={() => window.helixis.tabs.create({ url: HOME_URL })}
         >
           +
         </button>
       </div>
 
-      <div className="navbar">
+      <div className="toolbar">
         <button
+          className="nav-btn"
+          title="Back"
           disabled={!activeTab?.canGoBack}
           onClick={() => activeTab && window.helixis.tabs.goBack(activeTab.id)}
         >
           ‹
         </button>
         <button
+          className="nav-btn"
+          title="Forward"
           disabled={!activeTab?.canGoForward}
           onClick={() => activeTab && window.helixis.tabs.goForward(activeTab.id)}
         >
           ›
         </button>
         <button
+          className="nav-btn"
+          title="Reload"
           disabled={!activeTab}
           onClick={() => activeTab && window.helixis.tabs.reload(activeTab.id)}
         >
@@ -81,9 +89,12 @@ export function TabBar({
             className="urlbar"
             value={urlDraft}
             placeholder="Search or enter address"
-            disabled={!activeTab}
+            spellCheck={false}
             onChange={(e) => setUrlDraft(e.target.value)}
-            onFocus={() => setEditing(true)}
+            onFocus={(e) => {
+              setEditing(true)
+              e.target.select()
+            }}
             onBlur={() => setEditing(false)}
           />
         </form>

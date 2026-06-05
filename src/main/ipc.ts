@@ -13,13 +13,8 @@ export function registerIpc(tabs: TabManager, cdpPort: number | null): void {
     cdpPort
   }))
 
-  ipcMain.handle('profiles:create', (_e, name: string) => tabs.createProfile(name))
-  ipcMain.handle('profiles:activate', (_e, profileId: string) => {
-    tabs.activateProfile(profileId)
-  })
-
   ipcMain.handle('tabs:create', (_e, opts: CreateTabOptions) =>
-    tabs.createTab(opts.url, opts.profileId, opts.activate ?? true)
+    tabs.createTab(opts.url, opts.activate ?? true)
   )
   ipcMain.handle('tabs:close', (_e, tabId: string) => tabs.closeTab(tabId))
   ipcMain.handle('tabs:activate', (_e, tabId: string) => tabs.activateTab(tabId))

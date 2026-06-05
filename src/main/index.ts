@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BaseWindow, WebContentsView } from 'electron'
 import { TabManager } from './TabManager'
 import { registerIpc } from './ipc'
+import { HOME_URL } from '../shared/layout'
 
 // --- Chrome DevTools Protocol -------------------------------------------------
 // Expose CDP so the Weeks 3-4 execution layer (Playwright via
@@ -61,6 +62,8 @@ function createWindow(): void {
   chrome.webContents.once('did-finish-load', () => {
     const [w, h] = window.getContentSize()
     chrome.setBounds({ x: 0, y: 0, width: w, height: h })
+    // Open a home tab so the app starts as a usable browser.
+    tabManager?.createTab(HOME_URL)
   })
 }
 

@@ -1,14 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ShellState } from '../shared/types'
-import { Sidebar } from './components/Sidebar'
-import { TabBar } from './components/TabBar'
+import { BrowserChrome } from './components/BrowserChrome'
 
-const EMPTY: ShellState = {
-  profiles: [],
-  tabs: [],
-  activeTabId: null,
-  activeProfileId: 'default'
-}
+const EMPTY: ShellState = { tabs: [], activeTabId: null }
 
 export function App(): JSX.Element {
   const [state, setState] = useState<ShellState>(EMPTY)
@@ -25,19 +19,15 @@ export function App(): JSX.Element {
     }
   }, [])
 
-  const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
-
   return (
     <div className="app">
-      <Sidebar state={state} />
-      <TabBar state={state} activeTab={activeTab} />
+      <BrowserChrome state={state} />
       {/* The content region is intentionally empty: the native WebContentsView
           for the active tab is layered on top of this hole by the main process. */}
       <main className="content-region">
         {state.tabs.length === 0 && (
           <div className="content-empty">
-            <h2>No tab open</h2>
-            <p>Launch a workspace app from the sidebar to get started.</p>
+            <p>No tab open — press + to open one.</p>
           </div>
         )}
       </main>

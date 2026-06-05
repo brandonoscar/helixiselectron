@@ -2,7 +2,7 @@
   "name": "helixis",
   "version": "0.1.0",
   "private": true,
-  "description": "Helixis — AI-native browser shell for property managers (Electron + WebContentsView, Playwright/CDP-ready)",
+  "description": "Helixis — a minimal tabbed web browser built on Electron (BaseWindow + WebContentsView)",
   "author": "Helixis",
   "license": "UNLICENSED",
   "main": "./out/main/index.js",

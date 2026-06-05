@@ -1,18 +1,9 @@
 // Types shared between the main process, the preload bridge, and the renderer.
 
-/** A property-management profile. Each profile maps to an isolated, persistent
- *  Electron session partition so cookies/storage for one PM customer never leak
- *  into another. */
-export interface Profile {
-  id: string
-  name: string
-}
-
-/** Serializable snapshot of a single embedded browser tab, pushed to the
- *  renderer whenever tab state changes. */
+/** Serializable snapshot of a single browser tab, pushed to the renderer
+ *  whenever tab state changes. */
 export interface TabState {
   id: string
-  profileId: string
   title: string
   url: string
   isLoading: boolean
@@ -20,17 +11,14 @@ export interface TabState {
   canGoForward: boolean
 }
 
-/** The whole shell state the sidebar/tabbar renders from. */
+/** The whole browser state the chrome (tabs + toolbar) renders from. */
 export interface ShellState {
-  profiles: Profile[]
   tabs: TabState[]
   activeTabId: string | null
-  activeProfileId: string
 }
 
 export interface CreateTabOptions {
   url: string
-  profileId?: string
   activate?: boolean
 }
 
@@ -48,10 +36,6 @@ export interface HelixisApi {
   app: {
     info(): Promise<AppInfo>
   }
-  profiles: {
-    create(name: string): Promise<Profile>
-    activate(profileId: string): Promise<void>
-  }
   tabs: {
     create(opts: CreateTabOptions): Promise<string>
     close(tabId: string): Promise<void>
@@ -61,6 +45,6 @@ export interface HelixisApi {
     goForward(tabId: string): Promise<void>
     reload(tabId: string): Promise<void>
   }
-  /** Subscribe to shell-state changes. Returns an unsubscribe function. */
+  /** Subscribe to browser-state changes. Returns an unsubscribe function. */
   onStateChanged(cb: (state: ShellState) => void): () => void
 }
