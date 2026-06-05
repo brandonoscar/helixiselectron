@@ -11,4 +11,13 @@ export const CHROME_HEIGHT = TABSTRIP_HEIGHT + TOOLBAR_HEIGHT
 export const DEFAULT_PROFILE_ID = 'default'
 export const DEFAULT_PROFILE_NAME = 'Default'
 
-export const HOME_URL = 'https://www.google.com'
+/** Custom scheme for Helixis-served pages (the new-tab/home page). */
+export const HELIXIS_SCHEME = 'helixis'
+export const NEWTAB_URL = `${HELIXIS_SCHEME}://newtab`
+
+/** The home / new-tab page. */
+export const HOME_URL = NEWTAB_URL
+
+/** Search engine used by the address bar and the new-tab search box. Swap this
+ *  one constant to change the default search provider. */
+export const SEARCH_URL = 'https://www.google.com/search'

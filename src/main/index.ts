@@ -1,8 +1,34 @@
 import { join } from 'node:path'
-import { app, BaseWindow, WebContentsView } from 'electron'
+import { app, BaseWindow, WebContentsView, protocol } from 'electron'
 import { TabManager } from './TabManager'
 import { registerIpc } from './ipc'
-import { HOME_URL } from '../shared/layout'
+import { browserSession } from './sessions'
+import { HOME_URL, HELIXIS_SCHEME } from '../shared/layout'
+import { NEWTAB_HTML } from './newtab'
+
+/** Serve Helixis-branded pages (the new-tab/home page) over helixis://. */
+function handleHelixisRequest(request: Request): Response {
+  try {
+    const { hostname } = new URL(request.url)
+    if (hostname === 'newtab') {
+      return new Response(NEWTAB_HTML, {
+        headers: { 'content-type': 'text/html; charset=utf-8' }
+      })
+    }
+    return new Response('Not found', { status: 404 })
+  } catch {
+    return new Response('Error', { status: 500 })
+  }
+}
+
+// The custom scheme must be registered as privileged before the app is ready so
+// pages served over helixis:// behave like normal secure, standard-origin pages.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: HELIXIS_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true }
+  }
+])
 
 // --- Chrome DevTools Protocol -------------------------------------------------
 // Expose CDP so the Weeks 3-4 execution layer (Playwright via
@@ -68,6 +94,13 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // Register the helixis:// handler on the *same* session the tabs use (a custom
+  // persistent partition) — protocol handlers are per-session, and the default
+  // session's registry does not apply to other partitions. Also register on the
+  // default session for completeness.
+  protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
+  browserSession().protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
+
   createWindow()
 
   app.on('activate', () => {

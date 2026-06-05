@@ -1,6 +1,6 @@
 import { BaseWindow, WebContentsView, shell } from 'electron'
 import type { ShellState, TabState } from '../shared/types'
-import { CHROME_HEIGHT } from '../shared/layout'
+import { CHROME_HEIGHT, SEARCH_URL } from '../shared/layout'
 import { browserSession } from './sessions'
 
 interface Tab {
@@ -97,7 +97,10 @@ export class TabManager {
     wc.on('did-start-loading', update)
     wc.on('did-stop-loading', update)
     wc.on('did-finish-load', update)
-    wc.on('did-fail-load', update)
+    wc.on('did-fail-load', (_e, code, desc, url) => {
+      console.error('[tab] did-fail-load', code, desc, url)
+      update()
+    })
 
     // Open target=_blank / window.open as new tabs. OAuth that demands a real
     // top-level browser (e.g. Google, which blocks embedded webviews) is pushed
@@ -199,5 +202,5 @@ function normalizeUrl(input: string): string {
   const trimmed = input.trim()
   if (/^[a-z]+:\/\//i.test(trimmed) || trimmed.startsWith('about:')) return trimmed
   if (/^[^\s.]+\.[^\s]+/.test(trimmed)) return `https://${trimmed}`
-  return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`
+  return `${SEARCH_URL}?q=${encodeURIComponent(trimmed)}`
 }

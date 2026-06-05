@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ShellState } from '../../shared/types'
-import { HOME_URL } from '../../shared/layout'
+import { HOME_URL, NEWTAB_URL } from '../../shared/layout'
 
 export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
@@ -9,8 +9,15 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const [editing, setEditing] = useState(false)
 
   // Keep the URL bar in sync with the active tab unless the user is typing.
+  // The internal new-tab URL is shown as an empty bar (placeholder), like a
+  // real browser, rather than exposing "helixis://newtab".
   useEffect(() => {
-    if (!editing) setUrlDraft(activeTab?.url ?? '')
+    if (!editing) {
+      const url = activeTab?.url ?? ''
+      // The browser normalizes helixis://newtab to a trailing-slash form.
+      const isNewTab = url === NEWTAB_URL || url === `${NEWTAB_URL}/`
+      setUrlDraft(isNewTab ? '' : url)
+    }
   }, [activeTab?.url, activeTab?.id, editing])
 
   const submitUrl = (e: React.FormEvent) => {
