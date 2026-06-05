@@ -63,7 +63,7 @@ function createWindow(): void {
     const [w, h] = window.getContentSize()
     chrome.setBounds({ x: 0, y: 0, width: w, height: h })
     // Open a home tab so the app starts as a usable browser.
-    tabManager?.createTab(HOME_URL)
+    tabManager?.createTab(process.env.HELIXIS_HOME || HOME_URL)
   })
 }
 
