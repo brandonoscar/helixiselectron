@@ -2,6 +2,7 @@ import { app, ipcMain } from 'electron'
 import type { TabManager } from './TabManager'
 import type { DownloadManager } from './downloads'
 import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
+import { query as queryHistory, clearHistory } from './history'
 import { browserSession } from './sessions'
 import type { AppInfo, CreateTabOptions, FindOptions, Settings } from '../shared/types'
 
@@ -49,7 +50,11 @@ export function registerIpc(
     const ses = browserSession()
     await ses.clearStorageData()
     await ses.clearCache()
+    clearHistory()
   })
+
+  ipcMain.handle('history:query', (_e, text: string) => queryHistory(text))
+  ipcMain.handle('history:clear', () => clearHistory())
 
   ipcMain.handle('overlay:set', (_e, open: boolean) => tabs.setChromeOverlay(open))
 }

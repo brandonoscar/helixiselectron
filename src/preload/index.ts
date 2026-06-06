@@ -8,7 +8,8 @@ import type {
   HelixisApi,
   SearchEngine,
   Settings,
-  ShellState
+  ShellState,
+  Suggestion
 } from '../shared/types'
 
 const api: HelixisApi = {
@@ -49,6 +50,11 @@ const api: HelixisApi = {
       ipcRenderer.invoke('settings:set', patch) as Promise<Settings>,
     engines: () => ipcRenderer.invoke('settings:engines') as Promise<SearchEngine[]>,
     clearData: () => ipcRenderer.invoke('settings:clearData') as Promise<void>
+  },
+  history: {
+    query: (text: string) =>
+      ipcRenderer.invoke('history:query', text) as Promise<Suggestion[]>,
+    clear: () => ipcRenderer.invoke('history:clear') as Promise<void>
   },
   setOverlay: (open: boolean) =>
     ipcRenderer.invoke('overlay:set', open) as Promise<void>,

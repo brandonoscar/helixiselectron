@@ -66,6 +66,12 @@ export interface SearchEngine {
   url: string
 }
 
+/** An address-bar autocomplete suggestion from history. */
+export interface Suggestion {
+  url: string
+  title: string
+}
+
 export interface AppInfo {
   version: string
   electron: string
@@ -103,6 +109,10 @@ export interface HelixisApi {
     set(patch: Partial<Settings>): Promise<Settings>
     engines(): Promise<SearchEngine[]>
     clearData(): Promise<void>
+  }
+  history: {
+    query(text: string): Promise<Suggestion[]>
+    clear(): Promise<void>
   }
   /** Raise the chrome view above the page for a full-area overlay (settings,
    *  autocomplete), and restore the page on close. */

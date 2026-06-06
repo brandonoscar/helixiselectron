@@ -1,23 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FindResult, ShellState } from '../../shared/types'
+import type { FindResult, ShellState, Suggestion } from '../../shared/types'
 import { HOME_URL, NEWTAB_URL } from '../../shared/layout'
 import { FindBar } from './FindBar'
 import { DownloadsPanel } from './DownloadsPanel'
 import { SettingsPanel } from './SettingsPanel'
+
+interface SuggestRow {
+  url: string
+  primary: string
+  secondary: string
+}
 
 export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
 
   const [urlDraft, setUrlDraft] = useState('')
   const [editing, setEditing] = useState(false)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [selIndex, setSelIndex] = useState(-1)
   const [findOpen, setFindOpen] = useState(false)
   const [findResult, setFindResult] = useState<FindResult | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const urlRef = useRef<HTMLInputElement>(null)
 
   // Keep the URL bar in sync with the active tab unless the user is typing.
-  // The internal new-tab URL is shown as an empty bar (placeholder), like a
-  // real browser, rather than exposing "helixis://newtab".
   useEffect(() => {
     if (!editing) {
       const url = activeTab?.url ?? ''
@@ -26,8 +32,12 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
     }
   }, [activeTab?.url, activeTab?.id, editing])
 
-  // Menu/shortcut driven: focus the address bar (Cmd/Ctrl+L), toggle find
-  // (Cmd/Ctrl+F), and receive find results.
+  // Raise the chrome above the page while editing so the suggestions dropdown is
+  // visible and clickable over the content area.
+  useEffect(() => {
+    window.helixis.setOverlay(editing)
+  }, [editing])
+
   useEffect(() => {
     const offFocus = window.helixis.onFocusAddressBar(() => {
       urlRef.current?.focus()
@@ -42,7 +52,6 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
     }
   }, [])
 
-  // Close the find bar (and clear the highlight) when switching tabs.
   useEffect(() => {
     setFindOpen(false)
     setFindResult(null)
@@ -55,15 +64,43 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
     window.helixis.tabs.stopFind()
   }
 
-  const submitUrl = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!activeTab) {
-      window.helixis.tabs.create({ url: urlDraft })
-    } else {
-      window.helixis.tabs.navigate(activeTab.id, urlDraft)
-    }
+  const onUrlChange = (value: string) => {
+    setUrlDraft(value)
+    setSelIndex(-1)
+    if (value.trim()) window.helixis.history.query(value).then(setSuggestions)
+    else setSuggestions([])
+  }
+
+  const rows: SuggestRow[] = urlDraft.trim()
+    ? [
+        { url: urlDraft, primary: `Search for “${urlDraft}”`, secondary: '' },
+        ...suggestions.map((s) => ({ url: s.url, primary: s.title, secondary: s.url }))
+      ]
+    : []
+
+  const go = (url: string) => {
+    if (!activeTab) window.helixis.tabs.create({ url })
+    else window.helixis.tabs.navigate(activeTab.id, url)
     setEditing(false)
+    setSuggestions([])
+    setSelIndex(-1)
     urlRef.current?.blur()
+  }
+
+  const onUrlKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      go(selIndex >= 0 ? rows[selIndex].url : urlDraft)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelIndex((i) => Math.min(i + 1, rows.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelIndex((i) => Math.max(i - 1, -1))
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      urlRef.current?.blur()
+    }
   }
 
   return (
@@ -132,28 +169,40 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
         >
           ⟳
         </button>
-        <form className="urlform" onSubmit={submitUrl}>
+        <div className="urlform">
           <input
             ref={urlRef}
             className="urlbar"
             value={urlDraft}
             placeholder="Search or enter address"
             spellCheck={false}
-            onChange={(e) => setUrlDraft(e.target.value)}
+            onChange={(e) => onUrlChange(e.target.value)}
+            onKeyDown={onUrlKeyDown}
             onFocus={(e) => {
               setEditing(true)
               e.target.select()
             }}
             onBlur={() => setEditing(false)}
           />
-        </form>
+          {editing && rows.length > 0 && (
+            <ul className="url-suggest">
+              {rows.map((row, i) => (
+                <li
+                  key={`${row.url}-${i}`}
+                  className={i === selIndex ? 'sel' : ''}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => go(row.url)}
+                >
+                  <span className="sugg-primary">{row.primary}</span>
+                  {row.secondary && <span className="sugg-secondary">{row.secondary}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         {findOpen && <FindBar result={findResult} onClose={closeFind} />}
         <DownloadsPanel />
-        <button
-          className="nav-btn"
-          title="Settings"
-          onClick={() => setSettingsOpen(true)}
-        >
+        <button className="nav-btn" title="Settings" onClick={() => setSettingsOpen(true)}>
           ⚙
         </button>
       </div>

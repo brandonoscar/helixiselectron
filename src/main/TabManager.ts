@@ -11,6 +11,7 @@ import type { FindOptions, ShellState, TabState } from '../shared/types'
 import { CHROME_HEIGHT, NEWTAB_URL, HELIXIS_SCHEME } from '../shared/layout'
 import { browserSession } from './sessions'
 import { searchFor } from './settings'
+import { recordVisit, updateTitle } from './history'
 
 interface Tab {
   id: string
@@ -108,11 +109,15 @@ export class TabManager {
     const wc = tab.view.webContents
     const update = () => this.emitState()
 
-    wc.on('page-title-updated', update)
-    wc.on('did-navigate', () => {
+    wc.on('page-title-updated', (_e, title) => {
+      updateTitle(wc.getURL(), title)
+      update()
+    })
+    wc.on('did-navigate', (_e, url) => {
       // Clear the favicon on a top-level navigation until the new page reports
       // one, so a stale icon doesn't linger.
       tab.favicon = null
+      recordVisit(url, wc.getTitle())
       update()
     })
     wc.on('did-navigate-in-page', update)

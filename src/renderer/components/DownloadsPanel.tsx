@@ -20,6 +20,12 @@ export function DownloadsPanel(): JSX.Element | null {
     })
   }, [])
 
+  // The popover extends below the toolbar over the page, so raise the chrome
+  // above the content view while it's open.
+  useEffect(() => {
+    window.helixis.setOverlay(open)
+  }, [open])
+
   if (items.length === 0) return null
 
   const active = items.filter((d) => d.status === 'progressing').length
