@@ -1,10 +1,10 @@
-import { SEARCH_URL } from '../shared/layout'
-
 // The Helixis new-tab / home page, served over the custom `helixis://newtab`
 // scheme (see index.ts). Self-contained HTML so it ships inside the app with no
-// external assets. The search box is a plain GET form so it works inside the
-// sandboxed content view without any IPC.
-export const NEWTAB_HTML = `<!doctype html>
+// external assets. The search box is a plain GET form (pointed at the user's
+// configured search engine) so it works inside the sandboxed content view
+// without any IPC.
+export function newtabHTML(searchUrl: string): string {
+  return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -45,9 +45,10 @@ export const NEWTAB_HTML = `<!doctype html>
     <span class="mark">◐</span>
     <span class="name">Helixis</span>
   </div>
-  <form action="${SEARCH_URL}" method="GET" autocomplete="off">
+  <form action="${searchUrl}" method="GET" autocomplete="off">
     <input name="q" placeholder="Search the web" autofocus aria-label="Search" />
   </form>
   <div class="tagline">Search the web with Helixis</div>
 </body>
 </html>`
+}

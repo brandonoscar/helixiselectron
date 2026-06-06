@@ -8,8 +8,9 @@ import {
   type WebContents
 } from 'electron'
 import type { FindOptions, ShellState, TabState } from '../shared/types'
-import { CHROME_HEIGHT, SEARCH_URL, HOME_URL, HELIXIS_SCHEME } from '../shared/layout'
+import { CHROME_HEIGHT, NEWTAB_URL, HELIXIS_SCHEME } from '../shared/layout'
 import { browserSession } from './sessions'
+import { searchFor } from './settings'
 
 interface Tab {
   id: string
@@ -158,6 +159,20 @@ export class TabManager {
   private showContextMenu(wc: WebContents, params: ContextMenuParams): void {
     const items: Electron.MenuItemConstructorOptions[] = []
 
+    // Spellcheck suggestions for a misspelled word in an editable field.
+    if (params.misspelledWord) {
+      for (const suggestion of params.dictionarySuggestions.slice(0, 5)) {
+        items.push({ label: suggestion, click: () => wc.replaceMisspelling(suggestion) })
+      }
+      items.push(
+        {
+          label: 'Add to Dictionary',
+          click: () => wc.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+        },
+        { type: 'separator' }
+      )
+    }
+
     if (params.linkURL) {
       items.push(
         { label: 'Open Link in New Tab', click: () => this.createTab(params.linkURL, false) },
@@ -189,8 +204,7 @@ export class TabManager {
         { role: 'copy' },
         {
           label: `Search for “${truncate(params.selectionText, 24)}”`,
-          click: () =>
-            this.createTab(`${SEARCH_URL}?q=${encodeURIComponent(params.selectionText)}`, false)
+          click: () => this.createTab(searchFor(params.selectionText), false)
         },
         { type: 'separator' }
       )
@@ -279,7 +293,7 @@ export class TabManager {
   }
 
   newTab(): void {
-    this.createTab(HOME_URL)
+    this.createTab(NEWTAB_URL)
   }
 
   closeActive(): void {
@@ -342,6 +356,24 @@ export class TabManager {
     const i = this.order.indexOf(this.activeTabId)
     const next = (i + delta + this.order.length) % this.order.length
     this.activateTab(this.order[next])
+  }
+
+  /**
+   * Chrome-level overlays (settings, autocomplete dropdown) live in the chrome
+   * view, which normally sits *below* the active tab's content view. When an
+   * overlay opens we raise the chrome above the content and hide the page so the
+   * overlay is visible and receives clicks; on close we restore the page on top.
+   */
+  setChromeOverlay(open: boolean): void {
+    const active = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    if (open) {
+      this.window.contentView.addChildView(this.chrome) // raise chrome to top
+      active?.view.setVisible(false)
+    } else if (active) {
+      this.window.contentView.addChildView(active.view) // restore page on top
+      active.view.setVisible(true)
+      this.layout()
+    }
   }
 
   focusAddressBar(): void {
@@ -442,7 +474,7 @@ function normalizeUrl(input: string): string {
   const trimmed = input.trim()
   if (/^[a-z]+:\/\//i.test(trimmed) || trimmed.startsWith('about:')) return trimmed
   if (/^[^\s.]+\.[^\s]+/.test(trimmed)) return `https://${trimmed}`
-  return `${SEARCH_URL}?q=${encodeURIComponent(trimmed)}`
+  return searchFor(trimmed)
 }
 
 function truncate(s: string, n: number): string {

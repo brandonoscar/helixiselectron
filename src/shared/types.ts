@@ -51,6 +51,21 @@ export interface DownloadItem {
   savePath: string
 }
 
+export interface Settings {
+  /** Search-engine id. */
+  searchEngine: string
+  /** Startup page: a URL, or the new-tab URL for the Helixis new-tab page. */
+  homePage: string
+  /** Reopen last session's tabs on launch. */
+  restoreSession: boolean
+}
+
+export interface SearchEngine {
+  id: string
+  name: string
+  url: string
+}
+
 export interface AppInfo {
   version: string
   electron: string
@@ -83,6 +98,15 @@ export interface HelixisApi {
     cancel(id: string): Promise<void>
     clear(): Promise<void>
   }
+  settings: {
+    get(): Promise<Settings>
+    set(patch: Partial<Settings>): Promise<Settings>
+    engines(): Promise<SearchEngine[]>
+    clearData(): Promise<void>
+  }
+  /** Raise the chrome view above the page for a full-area overlay (settings,
+   *  autocomplete), and restore the page on close. */
+  setOverlay(open: boolean): Promise<void>
   /** Subscribe to browser-state changes. Returns an unsubscribe function. */
   onStateChanged(cb: (state: ShellState) => void): () => void
   /** Subscribe to the downloads list. Returns an unsubscribe function. */

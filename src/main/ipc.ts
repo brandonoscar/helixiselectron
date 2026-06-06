@@ -1,7 +1,9 @@
 import { app, ipcMain } from 'electron'
 import type { TabManager } from './TabManager'
 import type { DownloadManager } from './downloads'
-import type { AppInfo, CreateTabOptions, FindOptions } from '../shared/types'
+import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
+import { browserSession } from './sessions'
+import type { AppInfo, CreateTabOptions, FindOptions, Settings } from '../shared/types'
 
 export function registerIpc(
   tabs: TabManager,
@@ -39,4 +41,15 @@ export function registerIpc(
   ipcMain.handle('downloads:showInFolder', (_e, id: string) => downloads.showInFolder(id))
   ipcMain.handle('downloads:cancel', (_e, id: string) => downloads.cancel(id))
   ipcMain.handle('downloads:clear', () => downloads.clear())
+
+  ipcMain.handle('settings:get', () => getSettings())
+  ipcMain.handle('settings:set', (_e, patch: Partial<Settings>) => setSettings(patch))
+  ipcMain.handle('settings:engines', () => SEARCH_ENGINES)
+  ipcMain.handle('settings:clearData', async () => {
+    const ses = browserSession()
+    await ses.clearStorageData()
+    await ses.clearCache()
+  })
+
+  ipcMain.handle('overlay:set', (_e, open: boolean) => tabs.setChromeOverlay(open))
 }

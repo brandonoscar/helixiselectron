@@ -7,8 +7,9 @@ import { DownloadManager } from './downloads'
 import { installPermissionHandlers } from './permissions'
 import { browserSession } from './sessions'
 import { readJSON, writeJSON, debounce } from './store'
-import { HOME_URL, HELIXIS_SCHEME } from '../shared/layout'
-import { NEWTAB_HTML } from './newtab'
+import { getSettings, homeUrl, searchUrl } from './settings'
+import { HELIXIS_SCHEME } from '../shared/layout'
+import { newtabHTML } from './newtab'
 import { errorPageHTML } from './errorpage'
 
 const WINDOW_STATE_FILE = 'window-state.json'
@@ -32,7 +33,7 @@ function handleHelixisRequest(request: Request): Response {
   try {
     const url = new URL(request.url)
     if (url.hostname === 'newtab') {
-      return new Response(NEWTAB_HTML, {
+      return new Response(newtabHTML(searchUrl()), {
         headers: { 'content-type': 'text/html; charset=utf-8' }
       })
     }
@@ -157,12 +158,13 @@ function createWindow(): void {
   chrome.webContents.once('did-finish-load', () => {
     const [w, h] = window.getContentSize()
     chrome.setBounds({ x: 0, y: 0, width: w, height: h })
-    // Restore last session's tabs, or open a single home tab. An explicit
-    // HELIXIS_HOME override always wins (used in dev/testing).
+    // Restore last session's tabs (if enabled), or open the home page. An
+    // explicit HELIXIS_HOME override always wins (used in dev/testing).
     const override = process.env.HELIXIS_HOME
     const session = readJSON<SessionState>(SESSION_FILE, { tabs: [], active: 0 })
     if (override) tabManager?.createTab(override)
-    else if (!tabManager?.restore(session)) tabManager?.createTab(HOME_URL)
+    else if (!(getSettings().restoreSession && tabManager?.restore(session)))
+      tabManager?.createTab(homeUrl())
   })
 }
 

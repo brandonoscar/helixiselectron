@@ -17,7 +17,3 @@ export const NEWTAB_URL = `${HELIXIS_SCHEME}://newtab`
 
 /** The home / new-tab page. */
 export const HOME_URL = NEWTAB_URL
-
-/** Search engine used by the address bar and the new-tab search box. Swap this
- *  one constant to change the default search provider. */
-export const SEARCH_URL = 'https://www.google.com/search'

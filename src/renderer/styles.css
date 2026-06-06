@@ -316,6 +316,92 @@ body,
   padding: 0;
 }
 
+/* --- settings overlay --- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 64px;
+  z-index: 50;
+}
+.settings {
+  width: 540px;
+  max-width: 92vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--chrome-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.settings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.settings-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.setting {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.setting > label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.settings select,
+.settings-input {
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.radio-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.setting > label.radio,
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.settings-btn {
+  align-self: flex-start;
+  background: var(--field);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.settings-btn:hover {
+  border-color: var(--accent);
+}
+.settings-note {
+  color: #4ccb8b;
+  font-size: 12px;
+}
+
 /* --- loading bar --- */
 .loadbar {
   position: absolute;

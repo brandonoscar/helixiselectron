@@ -3,6 +3,7 @@ import type { FindResult, ShellState } from '../../shared/types'
 import { HOME_URL, NEWTAB_URL } from '../../shared/layout'
 import { FindBar } from './FindBar'
 import { DownloadsPanel } from './DownloadsPanel'
+import { SettingsPanel } from './SettingsPanel'
 
 export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
@@ -11,6 +12,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
   const [findResult, setFindResult] = useState<FindResult | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const urlRef = useRef<HTMLInputElement>(null)
 
   // Keep the URL bar in sync with the active tab unless the user is typing.
@@ -147,9 +149,17 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
         </form>
         {findOpen && <FindBar result={findResult} onClose={closeFind} />}
         <DownloadsPanel />
+        <button
+          className="nav-btn"
+          title="Settings"
+          onClick={() => setSettingsOpen(true)}
+        >
+          ⚙
+        </button>
       </div>
 
       {activeTab?.isLoading && <div className="loadbar" />}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

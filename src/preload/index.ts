@@ -6,6 +6,8 @@ import type {
   FindOptions,
   FindResult,
   HelixisApi,
+  SearchEngine,
+  Settings,
   ShellState
 } from '../shared/types'
 
@@ -41,6 +43,15 @@ const api: HelixisApi = {
     cancel: (id: string) => ipcRenderer.invoke('downloads:cancel', id) as Promise<void>,
     clear: () => ipcRenderer.invoke('downloads:clear') as Promise<void>
   },
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get') as Promise<Settings>,
+    set: (patch: Partial<Settings>) =>
+      ipcRenderer.invoke('settings:set', patch) as Promise<Settings>,
+    engines: () => ipcRenderer.invoke('settings:engines') as Promise<SearchEngine[]>,
+    clearData: () => ipcRenderer.invoke('settings:clearData') as Promise<void>
+  },
+  setOverlay: (open: boolean) =>
+    ipcRenderer.invoke('overlay:set', open) as Promise<void>,
   onStateChanged: (cb: (state: ShellState) => void) => {
     const listener = (_e: unknown, state: ShellState) => cb(state)
     ipcRenderer.on('shell:state', listener)
