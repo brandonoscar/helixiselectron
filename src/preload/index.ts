@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppInfo,
   CreateTabOptions,
+  DownloadItem,
   FindOptions,
   FindResult,
   HelixisApi,
@@ -32,10 +33,23 @@ const api: HelixisApi = {
       ipcRenderer.invoke('tabs:find', { text, opts }) as Promise<void>,
     stopFind: () => ipcRenderer.invoke('tabs:stopFind') as Promise<void>
   },
+  downloads: {
+    list: () => ipcRenderer.invoke('downloads:list') as Promise<DownloadItem[]>,
+    open: (id: string) => ipcRenderer.invoke('downloads:open', id) as Promise<void>,
+    showInFolder: (id: string) =>
+      ipcRenderer.invoke('downloads:showInFolder', id) as Promise<void>,
+    cancel: (id: string) => ipcRenderer.invoke('downloads:cancel', id) as Promise<void>,
+    clear: () => ipcRenderer.invoke('downloads:clear') as Promise<void>
+  },
   onStateChanged: (cb: (state: ShellState) => void) => {
     const listener = (_e: unknown, state: ShellState) => cb(state)
     ipcRenderer.on('shell:state', listener)
     return () => ipcRenderer.removeListener('shell:state', listener)
+  },
+  onDownloads: (cb: (items: DownloadItem[]) => void) => {
+    const listener = (_e: unknown, items: DownloadItem[]) => cb(items)
+    ipcRenderer.on('shell:downloads', listener)
+    return () => ipcRenderer.removeListener('shell:downloads', listener)
   },
   onFocusAddressBar: (cb: () => void) => {
     const listener = () => cb()

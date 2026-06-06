@@ -55,8 +55,21 @@ npm run package      # build + electron-builder installers
 
 ## Features
 
-- Multiple tabs (open, close, switch), with live title/loading state.
+- Multiple tabs (open, close, switch) with favicons + per-tab loading spinner.
 - Back / forward / reload + an address bar that accepts URLs, bare hostnames, or
   search terms.
-- `target=_blank` / `window.open` open as new tabs.
-- Logins persist across restarts.
+- **Application menu + keyboard shortcuts**: new/close/reopen tab, reload/force
+  reload, find, zoom in/out/reset, back/forward, next/previous tab, focus
+  address bar (Cmd/Ctrl+L), devtools, fullscreen.
+- **Right-click context menus** for links, images, editable fields, and text
+  selections, plus back/forward/reload and inspect.
+- **Find in page** (Cmd/Ctrl+F) with match count and next/previous.
+- **Downloads** to the OS Downloads folder, with a progress popover and
+  open/show-in-folder.
+- **Permission prompts** for camera/mic/location/notifications (remembered per
+  origin).
+- **Error pages** for failed loads (keeps the original URL in the address bar).
+- **Window-state + session restore**: window size and open tabs return on next
+  launch.
+- `target=_blank` / `window.open` open as new tabs; Google OAuth opens in the
+  system browser. Logins persist across restarts.

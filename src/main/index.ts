@@ -3,6 +3,8 @@ import { app, BaseWindow, WebContentsView, protocol } from 'electron'
 import { TabManager } from './TabManager'
 import { registerIpc } from './ipc'
 import { installAppMenu } from './menu'
+import { DownloadManager } from './downloads'
+import { installPermissionHandlers } from './permissions'
 import { browserSession } from './sessions'
 import { readJSON, writeJSON, debounce } from './store'
 import { HOME_URL, HELIXIS_SCHEME } from '../shared/layout'
@@ -129,7 +131,15 @@ function createWindow(): void {
   window.contentView.addChildView(chrome)
 
   tabManager = new TabManager(window, chrome)
-  registerIpc(tabManager, cdpPort)
+
+  // Downloads (saved to the OS Downloads folder; progress pushed to the UI) and
+  // permission prompts both operate on the tabs' session.
+  const downloads = new DownloadManager(browserSession(), (items) => {
+    if (!chrome.webContents.isDestroyed()) chrome.webContents.send('shell:downloads', items)
+  })
+  installPermissionHandlers(browserSession())
+
+  registerIpc(tabManager, downloads, cdpPort)
   installAppMenu(tabManager)
 
   // Persist the open-tab session (debounced) for restore on next launch.

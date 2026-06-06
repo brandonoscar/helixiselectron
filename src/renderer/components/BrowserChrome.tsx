@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FindResult, ShellState } from '../../shared/types'
 import { HOME_URL, NEWTAB_URL } from '../../shared/layout'
 import { FindBar } from './FindBar'
+import { DownloadsPanel } from './DownloadsPanel'
 
 export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
@@ -145,6 +146,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
           />
         </form>
         {findOpen && <FindBar result={findResult} onClose={closeFind} />}
+        <DownloadsPanel />
       </div>
 
       {activeTab?.isLoading && <div className="loadbar" />}

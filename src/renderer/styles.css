@@ -222,6 +222,100 @@ body,
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* --- downloads --- */
+.downloads {
+  position: relative;
+}
+.downloads-btn {
+  position: relative;
+}
+.downloads-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  border-radius: 8px;
+  padding: 0 4px;
+  line-height: 14px;
+}
+.downloads-pop {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  width: 320px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--chrome-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  z-index: 10;
+}
+.downloads-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.downloads-empty {
+  color: var(--muted);
+  font-size: 12px;
+}
+.download-row {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.download-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 5px;
+}
+.download-progress {
+  height: 4px;
+  background: var(--field);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.download-progress-fill {
+  height: 100%;
+  background: var(--accent);
+}
+.download-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.download-actions {
+  display: flex;
+  gap: 8px;
+}
+.download-status.completed {
+  color: #4ccb8b;
+}
+.download-status.cancelled,
+.download-status.interrupted {
+  color: #e06a6a;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
 /* --- loading bar --- */
 .loadbar {
   position: absolute;

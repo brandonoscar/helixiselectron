@@ -35,6 +35,22 @@ export interface FindResult {
   active: number
 }
 
+export type DownloadStatus =
+  | 'progressing'
+  | 'completed'
+  | 'cancelled'
+  | 'interrupted'
+
+export interface DownloadItem {
+  id: string
+  filename: string
+  url: string
+  status: DownloadStatus
+  received: number
+  total: number
+  savePath: string
+}
+
 export interface AppInfo {
   version: string
   electron: string
@@ -60,8 +76,17 @@ export interface HelixisApi {
     find(text: string, opts?: FindOptions): Promise<void>
     stopFind(): Promise<void>
   }
+  downloads: {
+    list(): Promise<DownloadItem[]>
+    open(id: string): Promise<void>
+    showInFolder(id: string): Promise<void>
+    cancel(id: string): Promise<void>
+    clear(): Promise<void>
+  }
   /** Subscribe to browser-state changes. Returns an unsubscribe function. */
   onStateChanged(cb: (state: ShellState) => void): () => void
+  /** Subscribe to the downloads list. Returns an unsubscribe function. */
+  onDownloads(cb: (items: DownloadItem[]) => void): () => void
   /** Fired when the menu/shortcut asks to focus the address bar (Cmd/Ctrl+L). */
   onFocusAddressBar(cb: () => void): () => void
   /** Fired when the menu/shortcut toggles the find bar (Cmd/Ctrl+F). */

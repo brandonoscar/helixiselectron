@@ -1,8 +1,13 @@
 import { app, ipcMain } from 'electron'
 import type { TabManager } from './TabManager'
+import type { DownloadManager } from './downloads'
 import type { AppInfo, CreateTabOptions, FindOptions } from '../shared/types'
 
-export function registerIpc(tabs: TabManager, cdpPort: number | null): void {
+export function registerIpc(
+  tabs: TabManager,
+  downloads: DownloadManager,
+  cdpPort: number | null
+): void {
   ipcMain.handle('shell:getState', () => tabs.getState())
 
   ipcMain.handle('app:info', (): AppInfo => ({
@@ -28,4 +33,10 @@ export function registerIpc(tabs: TabManager, cdpPort: number | null): void {
     tabs.find(p.text, p.opts)
   )
   ipcMain.handle('tabs:stopFind', () => tabs.stopFind())
+
+  ipcMain.handle('downloads:list', () => downloads.list())
+  ipcMain.handle('downloads:open', (_e, id: string) => downloads.open(id))
+  ipcMain.handle('downloads:showInFolder', (_e, id: string) => downloads.showInFolder(id))
+  ipcMain.handle('downloads:cancel', (_e, id: string) => downloads.cancel(id))
+  ipcMain.handle('downloads:clear', () => downloads.clear())
 }
