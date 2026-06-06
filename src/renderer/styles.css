@@ -266,6 +266,75 @@ body,
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* --- bookmarks --- */
+.nav-btn.starred {
+  color: #f4c150;
+}
+.bookmarks {
+  position: relative;
+}
+.bm-pop {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--chrome-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 8px;
+  z-index: 40;
+}
+.bm-head {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 4px 8px;
+}
+.bm-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px;
+}
+.bm-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bm-open {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 7px 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.bm-open:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.bm-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.bm-remove:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
 /* --- downloads --- */
 .downloads {
   position: relative;

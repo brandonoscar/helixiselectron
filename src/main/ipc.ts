@@ -3,6 +3,7 @@ import type { TabManager } from './TabManager'
 import type { DownloadManager } from './downloads'
 import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
 import { query as queryHistory, clearHistory } from './history'
+import * as bookmarks from './bookmarks'
 import { browserSession } from './sessions'
 import type { AppInfo, CreateTabOptions, FindOptions, Settings } from '../shared/types'
 
@@ -55,6 +56,15 @@ export function registerIpc(
 
   ipcMain.handle('history:query', (_e, text: string) => queryHistory(text))
   ipcMain.handle('history:clear', () => clearHistory())
+
+  ipcMain.handle('bookmarks:list', () => bookmarks.list())
+  ipcMain.handle('bookmarks:toggle', (_e, p: { url: string; title: string }) =>
+    bookmarks.toggle(p.url, p.title)
+  )
+  ipcMain.handle('bookmarks:remove', (_e, url: string) => {
+    bookmarks.remove(url)
+    return bookmarks.list()
+  })
 
   ipcMain.handle('overlay:set', (_e, open: boolean) => tabs.setChromeOverlay(open))
 }

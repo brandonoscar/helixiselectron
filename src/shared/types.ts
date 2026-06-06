@@ -72,6 +72,11 @@ export interface Suggestion {
   title: string
 }
 
+export interface Bookmark {
+  url: string
+  title: string
+}
+
 export interface AppInfo {
   version: string
   electron: string
@@ -114,6 +119,13 @@ export interface HelixisApi {
     query(text: string): Promise<Suggestion[]>
     clear(): Promise<void>
   }
+  bookmarks: {
+    list(): Promise<Bookmark[]>
+    toggle(url: string, title: string): Promise<Bookmark[]>
+    remove(url: string): Promise<Bookmark[]>
+  }
+  /** Subscribe to bookmark-list changes. Returns an unsubscribe function. */
+  onBookmarks(cb: (items: Bookmark[]) => void): () => void
   /** Raise the chrome view above the page for a full-area overlay (settings,
    *  autocomplete), and restore the page on close. */
   setOverlay(open: boolean): Promise<void>

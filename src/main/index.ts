@@ -5,6 +5,7 @@ import { registerIpc } from './ipc'
 import { installAppMenu } from './menu'
 import { DownloadManager } from './downloads'
 import { installPermissionHandlers } from './permissions'
+import { setBookmarksNotifier } from './bookmarks'
 import { browserSession } from './sessions'
 import { readJSON, writeJSON, debounce } from './store'
 import { getSettings, homeUrl, searchUrl } from './settings'
@@ -139,6 +140,9 @@ function createWindow(): void {
     if (!chrome.webContents.isDestroyed()) chrome.webContents.send('shell:downloads', items)
   })
   installPermissionHandlers(browserSession())
+  setBookmarksNotifier((items) => {
+    if (!chrome.webContents.isDestroyed()) chrome.webContents.send('shell:bookmarks', items)
+  })
 
   registerIpc(tabManager, downloads, cdpPort)
   installAppMenu(tabManager)

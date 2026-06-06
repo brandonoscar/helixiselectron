@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppInfo,
+  Bookmark,
   CreateTabOptions,
   DownloadItem,
   FindOptions,
@@ -55,6 +56,17 @@ const api: HelixisApi = {
     query: (text: string) =>
       ipcRenderer.invoke('history:query', text) as Promise<Suggestion[]>,
     clear: () => ipcRenderer.invoke('history:clear') as Promise<void>
+  },
+  bookmarks: {
+    list: () => ipcRenderer.invoke('bookmarks:list') as Promise<Bookmark[]>,
+    toggle: (url: string, title: string) =>
+      ipcRenderer.invoke('bookmarks:toggle', { url, title }) as Promise<Bookmark[]>,
+    remove: (url: string) => ipcRenderer.invoke('bookmarks:remove', url) as Promise<Bookmark[]>
+  },
+  onBookmarks: (cb: (items: Bookmark[]) => void) => {
+    const listener = (_e: unknown, items: Bookmark[]) => cb(items)
+    ipcRenderer.on('shell:bookmarks', listener)
+    return () => ipcRenderer.removeListener('shell:bookmarks', listener)
   },
   setOverlay: (open: boolean) =>
     ipcRenderer.invoke('overlay:set', open) as Promise<void>,

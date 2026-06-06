@@ -4,6 +4,7 @@ import { HOME_URL, NEWTAB_URL } from '../../shared/layout'
 import { FindBar } from './FindBar'
 import { DownloadsPanel } from './DownloadsPanel'
 import { SettingsPanel } from './SettingsPanel'
+import { Bookmarks } from './Bookmarks'
 
 interface SuggestRow {
   url: string
@@ -200,6 +201,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
             </ul>
           )}
         </div>
+        <Bookmarks url={activeTab?.url ?? ''} title={activeTab?.title ?? ''} />
         {findOpen && <FindBar result={findResult} onClose={closeFind} />}
         <DownloadsPanel />
         <button className="nav-btn" title="Settings" onClick={() => setSettingsOpen(true)}>
