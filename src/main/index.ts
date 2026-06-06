@@ -4,9 +4,26 @@ import { TabManager } from './TabManager'
 import { registerIpc } from './ipc'
 import { installAppMenu } from './menu'
 import { browserSession } from './sessions'
+import { readJSON, writeJSON, debounce } from './store'
 import { HOME_URL, HELIXIS_SCHEME } from '../shared/layout'
 import { NEWTAB_HTML } from './newtab'
 import { errorPageHTML } from './errorpage'
+
+const WINDOW_STATE_FILE = 'window-state.json'
+const SESSION_FILE = 'session.json'
+
+interface WindowState {
+  width: number
+  height: number
+  x?: number
+  y?: number
+  maximized?: boolean
+}
+
+interface SessionState {
+  tabs: string[]
+  active: number
+}
 
 /** Serve Helixis-branded pages (new-tab and error pages) over helixis://. */
 function handleHelixisRequest(request: Request): Response {
@@ -66,15 +83,38 @@ function resolveCdpPort(): number | null {
 
 let tabManager: TabManager | null = null
 
+function saveWindowState(window: BaseWindow): void {
+  const maximized = window.isMaximized()
+  const prev = readJSON<WindowState>(WINDOW_STATE_FILE, { width: 1440, height: 900 })
+  const next: WindowState = { ...prev, maximized }
+  if (!maximized) {
+    const b = window.getBounds()
+    next.width = b.width
+    next.height = b.height
+    next.x = b.x
+    next.y = b.y
+  }
+  writeJSON(WINDOW_STATE_FILE, next)
+}
+
 function createWindow(): void {
+  const ws = readJSON<WindowState>(WINDOW_STATE_FILE, { width: 1440, height: 900 })
   const window = new BaseWindow({
-    width: 1440,
-    height: 900,
+    width: ws.width,
+    height: ws.height,
+    x: ws.x,
+    y: ws.y,
     minWidth: 900,
     minHeight: 600,
     title: 'Helixis',
     backgroundColor: '#0f1115'
   })
+  if (ws.maximized) window.maximize()
+
+  const persistWindow = debounce(() => saveWindowState(window), 400)
+  window.on('resize', persistWindow)
+  window.on('move', persistWindow)
+  window.on('close', () => saveWindowState(window))
 
   // The chrome view hosts the React UI (sidebar + tab bar) and spans the whole
   // window. Content tab views are layered on top of it.
@@ -92,6 +132,12 @@ function createWindow(): void {
   registerIpc(tabManager, cdpPort)
   installAppMenu(tabManager)
 
+  // Persist the open-tab session (debounced) for restore on next launch.
+  const persistSession = debounce(() => {
+    if (tabManager) writeJSON(SESSION_FILE, tabManager.serialize())
+  }, 500)
+  tabManager.setPersistHandler(persistSession)
+
   if (process.env.ELECTRON_RENDERER_URL) {
     chrome.webContents.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {
@@ -101,8 +147,12 @@ function createWindow(): void {
   chrome.webContents.once('did-finish-load', () => {
     const [w, h] = window.getContentSize()
     chrome.setBounds({ x: 0, y: 0, width: w, height: h })
-    // Open a home tab so the app starts as a usable browser.
-    tabManager?.createTab(process.env.HELIXIS_HOME || HOME_URL)
+    // Restore last session's tabs, or open a single home tab. An explicit
+    // HELIXIS_HOME override always wins (used in dev/testing).
+    const override = process.env.HELIXIS_HOME
+    const session = readJSON<SessionState>(SESSION_FILE, { tabs: [], active: 0 })
+    if (override) tabManager?.createTab(override)
+    else if (!tabManager?.restore(session)) tabManager?.createTab(HOME_URL)
   })
 }
 
@@ -119,6 +169,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BaseWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  if (tabManager) writeJSON(SESSION_FILE, tabManager.serialize())
 })
 
 app.on('window-all-closed', () => {

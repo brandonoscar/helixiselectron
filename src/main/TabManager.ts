@@ -36,6 +36,9 @@ export class TabManager {
   private activeTabId: string | null = null
   /** URLs of recently closed tabs, for Reopen Closed Tab. */
   private closedStack: string[] = []
+  /** Called (debounced by the owner) whenever the open-tab set changes, so the
+   *  session can be persisted for restore on next launch. */
+  private persistHandler: (() => void) | null = null
 
   constructor(window: BaseWindow, chrome: WebContentsView) {
     this.window = window
@@ -377,8 +380,39 @@ export class TabManager {
   }
 
   private emitState(): void {
-    if (this.chrome.webContents.isDestroyed()) return
-    this.chrome.webContents.send('shell:state', this.getState())
+    if (!this.chrome.webContents.isDestroyed())
+      this.chrome.webContents.send('shell:state', this.getState())
+    this.persistHandler?.()
+  }
+
+  setPersistHandler(fn: () => void): void {
+    this.persistHandler = fn
+  }
+
+  /** Snapshot of open tabs for session restore: the real (non-error) URLs and
+   *  the index of the active tab. */
+  serialize(): { tabs: string[]; active: number } {
+    const urls: string[] = []
+    let active = 0
+    this.order.forEach((id) => {
+      const tab = this.tabs.get(id)
+      if (!tab) return
+      const raw = tab.view.webContents.getURL()
+      const url = errorOriginal(raw) ?? raw
+      if (!url) return
+      if (id === this.activeTabId) active = urls.length
+      urls.push(url)
+    })
+    return { tabs: urls, active }
+  }
+
+  /** Restore tabs from a serialized session. Returns true if anything opened. */
+  restore(session: { tabs: string[]; active: number }): boolean {
+    if (!session.tabs.length) return false
+    session.tabs.forEach((url) => this.createTab(url, false))
+    const target = this.order[session.active] ?? this.order[0]
+    if (target) this.activateTab(target)
+    return true
   }
 }
 
