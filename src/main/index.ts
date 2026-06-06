@@ -172,20 +172,64 @@ function createWindow(): void {
   })
 }
 
-app.whenReady().then(() => {
-  // Register the helixis:// handler on the *same* session the tabs use (a custom
-  // persistent partition) — protocol handlers are per-session, and the default
-  // session's registry does not apply to other partitions. Also register on the
-  // default session for completeness.
-  protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
-  browserSession().protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
+/** Pull the first http(s) URL out of process argv (used when the OS launches us
+ *  to open a link, on Windows/Linux). */
+function httpUrlFromArgv(argv: string[]): string | null {
+  return argv.find((a) => /^https?:\/\//i.test(a)) ?? null
+}
 
-  createWindow()
+function openIncomingUrl(url: string): void {
+  const win = BaseWindow.getAllWindows()[0]
+  if (win) {
+    if (win.isMinimized()) win.restore()
+    win.focus()
+  }
+  tabManager?.createTab(url)
+}
 
-  app.on('activate', () => {
-    if (BaseWindow.getAllWindows().length === 0) createWindow()
+// Single-instance: a second launch focuses the existing window (and opens any
+// URL it was asked to handle) instead of starting a new process.
+const gotInstanceLock = app.requestSingleInstanceLock()
+if (!gotInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, argv) => {
+    const url = httpUrlFromArgv(argv)
+    if (url) openIncomingUrl(url)
+    else {
+      const win = BaseWindow.getAllWindows()[0]
+      if (win) {
+        if (win.isMinimized()) win.restore()
+        win.focus()
+      }
+    }
   })
-})
+
+  // macOS delivers links to open via this event.
+  app.on('open-url', (event, url) => {
+    event.preventDefault()
+    openIncomingUrl(url)
+  })
+
+  app.whenReady().then(() => {
+    // Register the helixis:// handler on the *same* session the tabs use (a
+    // custom persistent partition) — protocol handlers are per-session, and the
+    // default session's registry does not apply to other partitions. Also
+    // register on the default session for completeness.
+    protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
+    browserSession().protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
+
+    createWindow()
+
+    // If launched with a URL (Windows/Linux), open it.
+    const launchUrl = httpUrlFromArgv(process.argv)
+    if (launchUrl) tabManager?.createTab(launchUrl)
+
+    app.on('activate', () => {
+      if (BaseWindow.getAllWindows().length === 0) createWindow()
+    })
+  })
+}
 
 app.on('before-quit', () => {
   if (tabManager) writeJSON(SESSION_FILE, tabManager.serialize())

@@ -66,5 +66,12 @@ export function registerIpc(
     return bookmarks.list()
   })
 
+  ipcMain.handle('settings:isDefaultBrowser', () => app.isDefaultProtocolClient('http'))
+  ipcMain.handle('settings:makeDefaultBrowser', () => {
+    app.setAsDefaultProtocolClient('http')
+    app.setAsDefaultProtocolClient('https')
+    return app.isDefaultProtocolClient('http')
+  })
+
   ipcMain.handle('overlay:set', (_e, open: boolean) => tabs.setChromeOverlay(open))
 }

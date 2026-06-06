@@ -114,6 +114,8 @@ export interface HelixisApi {
     set(patch: Partial<Settings>): Promise<Settings>
     engines(): Promise<SearchEngine[]>
     clearData(): Promise<void>
+    isDefaultBrowser(): Promise<boolean>
+    makeDefaultBrowser(): Promise<boolean>
   }
   history: {
     query(text: string): Promise<Suggestion[]>

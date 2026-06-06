@@ -1,4 +1,5 @@
 import {
+  app,
   BaseWindow,
   WebContentsView,
   shell,
@@ -7,6 +8,8 @@ import {
   type ContextMenuParams,
   type WebContents
 } from 'electron'
+import { join } from 'node:path'
+import { writeFile } from 'node:fs/promises'
 import type { FindOptions, ShellState, TabState } from '../shared/types'
 import { CHROME_HEIGHT, NEWTAB_URL, HELIXIS_SCHEME } from '../shared/layout'
 import { browserSession } from './sessions'
@@ -339,6 +342,24 @@ export class TabManager {
 
   zoomReset(): void {
     this.activeWc()?.setZoomLevel(0)
+  }
+
+  printActive(): void {
+    this.activeWc()?.print()
+  }
+
+  async printToPDFActive(): Promise<void> {
+    const wc = this.activeWc()
+    if (!wc) return
+    try {
+      const data = await wc.printToPDF({})
+      const name = `${(wc.getTitle() || 'page').replace(/[^\w.-]+/g, '_').slice(0, 60)}.pdf`
+      const file = join(app.getPath('downloads'), name)
+      await writeFile(file, data)
+      shell.showItemInFolder(file)
+    } catch {
+      /* printing can fail with no engine available; ignore */
+    }
   }
 
   toggleDevTools(): void {

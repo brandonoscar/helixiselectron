@@ -50,7 +50,11 @@ const api: HelixisApi = {
     set: (patch: Partial<Settings>) =>
       ipcRenderer.invoke('settings:set', patch) as Promise<Settings>,
     engines: () => ipcRenderer.invoke('settings:engines') as Promise<SearchEngine[]>,
-    clearData: () => ipcRenderer.invoke('settings:clearData') as Promise<void>
+    clearData: () => ipcRenderer.invoke('settings:clearData') as Promise<void>,
+    isDefaultBrowser: () =>
+      ipcRenderer.invoke('settings:isDefaultBrowser') as Promise<boolean>,
+    makeDefaultBrowser: () =>
+      ipcRenderer.invoke('settings:makeDefaultBrowser') as Promise<boolean>
   },
   history: {
     query: (text: string) =>

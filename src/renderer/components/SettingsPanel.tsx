@@ -8,6 +8,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
   const [homeMode, setHomeMode] = useState<'newtab' | 'url'>('newtab')
   const [homeUrl, setHomeUrl] = useState('')
   const [cleared, setCleared] = useState(false)
+  const [isDefault, setIsDefault] = useState(false)
 
   useEffect(() => {
     window.helixis.settings.get().then((s) => {
@@ -17,6 +18,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
       setHomeUrl(isNewTab ? '' : s.homePage)
     })
     window.helixis.settings.engines().then(setEngines)
+    window.helixis.settings.isDefaultBrowser().then(setIsDefault)
     // Raise the chrome above the page so this modal is visible and clickable.
     window.helixis.setOverlay(true)
     return () => {
@@ -108,6 +110,20 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
                 />
                 Reopen tabs from last session
               </label>
+            </section>
+
+            <section className="setting">
+              <label>Default browser</label>
+              {isDefault ? (
+                <span className="settings-note">Helixis is your default browser.</span>
+              ) : (
+                <button
+                  className="settings-btn"
+                  onClick={async () => setIsDefault(await window.helixis.settings.makeDefaultBrowser())}
+                >
+                  Make Helixis the default browser
+                </button>
+              )}
             </section>
 
             <section className="setting">

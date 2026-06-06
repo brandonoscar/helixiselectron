@@ -47,6 +47,17 @@ export function installAppMenu(tabs: TabManager): void {
           click: () => tabs.reopenClosedTab()
         },
         { type: 'separator' },
+        {
+          label: 'Print…',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => tabs.printActive()
+        },
+        {
+          label: 'Save as PDF…',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => tabs.printToPDFActive()
+        },
+        { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
     },
