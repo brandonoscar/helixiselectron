@@ -1,6 +1,6 @@
 import { app, ipcMain } from 'electron'
 import type { TabManager } from './TabManager'
-import type { AppInfo, CreateTabOptions } from '../shared/types'
+import type { AppInfo, CreateTabOptions, FindOptions } from '../shared/types'
 
 export function registerIpc(tabs: TabManager, cdpPort: number | null): void {
   ipcMain.handle('shell:getState', () => tabs.getState())
@@ -24,4 +24,8 @@ export function registerIpc(tabs: TabManager, cdpPort: number | null): void {
   ipcMain.handle('tabs:goBack', (_e, tabId: string) => tabs.goBack(tabId))
   ipcMain.handle('tabs:goForward', (_e, tabId: string) => tabs.goForward(tabId))
   ipcMain.handle('tabs:reload', (_e, tabId: string) => tabs.reload(tabId))
+  ipcMain.handle('tabs:find', (_e, p: { text: string; opts?: FindOptions }) =>
+    tabs.find(p.text, p.opts)
+  )
+  ipcMain.handle('tabs:stopFind', () => tabs.stopFind())
 }

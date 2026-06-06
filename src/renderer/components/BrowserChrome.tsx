@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
-import type { ShellState } from '../../shared/types'
+import { useEffect, useRef, useState } from 'react'
+import type { FindResult, ShellState } from '../../shared/types'
 import { HOME_URL, NEWTAB_URL } from '../../shared/layout'
+import { FindBar } from './FindBar'
 
 export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const activeTab = state.tabs.find((t) => t.id === state.activeTabId) ?? null
 
   const [urlDraft, setUrlDraft] = useState('')
   const [editing, setEditing] = useState(false)
+  const [findOpen, setFindOpen] = useState(false)
+  const [findResult, setFindResult] = useState<FindResult | null>(null)
+  const urlRef = useRef<HTMLInputElement>(null)
 
   // Keep the URL bar in sync with the active tab unless the user is typing.
   // The internal new-tab URL is shown as an empty bar (placeholder), like a
@@ -14,11 +18,39 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   useEffect(() => {
     if (!editing) {
       const url = activeTab?.url ?? ''
-      // The browser normalizes helixis://newtab to a trailing-slash form.
       const isNewTab = url === NEWTAB_URL || url === `${NEWTAB_URL}/`
       setUrlDraft(isNewTab ? '' : url)
     }
   }, [activeTab?.url, activeTab?.id, editing])
+
+  // Menu/shortcut driven: focus the address bar (Cmd/Ctrl+L), toggle find
+  // (Cmd/Ctrl+F), and receive find results.
+  useEffect(() => {
+    const offFocus = window.helixis.onFocusAddressBar(() => {
+      urlRef.current?.focus()
+      urlRef.current?.select()
+    })
+    const offToggle = window.helixis.onToggleFind(() => setFindOpen((v) => !v))
+    const offResult = window.helixis.onFindResult((r) => setFindResult(r))
+    return () => {
+      offFocus()
+      offToggle()
+      offResult()
+    }
+  }, [])
+
+  // Close the find bar (and clear the highlight) when switching tabs.
+  useEffect(() => {
+    setFindOpen(false)
+    setFindResult(null)
+    window.helixis.tabs.stopFind()
+  }, [activeTab?.id])
+
+  const closeFind = () => {
+    setFindOpen(false)
+    setFindResult(null)
+    window.helixis.tabs.stopFind()
+  }
 
   const submitUrl = (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,7 +60,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
       window.helixis.tabs.navigate(activeTab.id, urlDraft)
     }
     setEditing(false)
-    ;(document.activeElement as HTMLElement | null)?.blur()
+    urlRef.current?.blur()
   }
 
   return (
@@ -41,10 +73,16 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
             onClick={() => window.helixis.tabs.activate(tab.id)}
             title={tab.url}
           >
-            <span className="tab-title">
-              {tab.isLoading ? '◌ ' : ''}
-              {tab.title || 'New tab'}
+            <span className="tab-favicon">
+              {tab.isLoading ? (
+                <span className="spinner" />
+              ) : tab.favicon ? (
+                <img src={tab.favicon} alt="" />
+              ) : (
+                <span className="favicon-dot" />
+              )}
             </span>
+            <span className="tab-title">{tab.title || 'New tab'}</span>
             <button
               className="tab-close"
               title="Close tab"
@@ -93,6 +131,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
         </button>
         <form className="urlform" onSubmit={submitUrl}>
           <input
+            ref={urlRef}
             className="urlbar"
             value={urlDraft}
             placeholder="Search or enter address"
@@ -105,7 +144,10 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
             onBlur={() => setEditing(false)}
           />
         </form>
+        {findOpen && <FindBar result={findResult} onClose={closeFind} />}
       </div>
+
+      {activeTab?.isLoading && <div className="loadbar" />}
     </div>
   )
 }

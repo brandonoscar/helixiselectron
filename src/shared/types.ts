@@ -9,6 +9,8 @@ export interface TabState {
   isLoading: boolean
   canGoBack: boolean
   canGoForward: boolean
+  /** Favicon URL for the page, if the page advertised one. */
+  favicon: string | null
 }
 
 /** The whole browser state the chrome (tabs + toolbar) renders from. */
@@ -20,6 +22,17 @@ export interface ShellState {
 export interface CreateTabOptions {
   url: string
   activate?: boolean
+}
+
+export interface FindOptions {
+  forward?: boolean
+  findNext?: boolean
+}
+
+/** Result of an in-page find, pushed to the renderer's find bar. */
+export interface FindResult {
+  matches: number
+  active: number
 }
 
 export interface AppInfo {
@@ -44,7 +57,15 @@ export interface HelixisApi {
     goBack(tabId: string): Promise<void>
     goForward(tabId: string): Promise<void>
     reload(tabId: string): Promise<void>
+    find(text: string, opts?: FindOptions): Promise<void>
+    stopFind(): Promise<void>
   }
   /** Subscribe to browser-state changes. Returns an unsubscribe function. */
   onStateChanged(cb: (state: ShellState) => void): () => void
+  /** Fired when the menu/shortcut asks to focus the address bar (Cmd/Ctrl+L). */
+  onFocusAddressBar(cb: () => void): () => void
+  /** Fired when the menu/shortcut toggles the find bar (Cmd/Ctrl+F). */
+  onToggleFind(cb: () => void): () => void
+  /** Fired with in-page find results for the active tab. */
+  onFindResult(cb: (result: FindResult) => void): () => void
 }

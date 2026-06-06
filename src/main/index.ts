@@ -2,16 +2,28 @@ import { join } from 'node:path'
 import { app, BaseWindow, WebContentsView, protocol } from 'electron'
 import { TabManager } from './TabManager'
 import { registerIpc } from './ipc'
+import { installAppMenu } from './menu'
 import { browserSession } from './sessions'
 import { HOME_URL, HELIXIS_SCHEME } from '../shared/layout'
 import { NEWTAB_HTML } from './newtab'
+import { errorPageHTML } from './errorpage'
 
-/** Serve Helixis-branded pages (the new-tab/home page) over helixis://. */
+/** Serve Helixis-branded pages (new-tab and error pages) over helixis://. */
 function handleHelixisRequest(request: Request): Response {
   try {
-    const { hostname } = new URL(request.url)
-    if (hostname === 'newtab') {
+    const url = new URL(request.url)
+    if (url.hostname === 'newtab') {
       return new Response(NEWTAB_HTML, {
+        headers: { 'content-type': 'text/html; charset=utf-8' }
+      })
+    }
+    if (url.hostname === 'error') {
+      const html = errorPageHTML(
+        url.searchParams.get('u') ?? '',
+        url.searchParams.get('code') ?? '',
+        url.searchParams.get('msg') ?? ''
+      )
+      return new Response(html, {
         headers: { 'content-type': 'text/html; charset=utf-8' }
       })
     }
@@ -78,6 +90,7 @@ function createWindow(): void {
 
   tabManager = new TabManager(window, chrome)
   registerIpc(tabManager, cdpPort)
+  installAppMenu(tabManager)
 
   if (process.env.ELECTRON_RENDERER_URL) {
     chrome.webContents.loadURL(process.env.ELECTRON_RENDERER_URL)

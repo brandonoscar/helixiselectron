@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppInfo,
   CreateTabOptions,
+  FindOptions,
+  FindResult,
   HelixisApi,
   ShellState
 } from '../shared/types'
@@ -25,12 +27,30 @@ const api: HelixisApi = {
     goForward: (tabId: string) =>
       ipcRenderer.invoke('tabs:goForward', tabId) as Promise<void>,
     reload: (tabId: string) =>
-      ipcRenderer.invoke('tabs:reload', tabId) as Promise<void>
+      ipcRenderer.invoke('tabs:reload', tabId) as Promise<void>,
+    find: (text: string, opts?: FindOptions) =>
+      ipcRenderer.invoke('tabs:find', { text, opts }) as Promise<void>,
+    stopFind: () => ipcRenderer.invoke('tabs:stopFind') as Promise<void>
   },
   onStateChanged: (cb: (state: ShellState) => void) => {
     const listener = (_e: unknown, state: ShellState) => cb(state)
     ipcRenderer.on('shell:state', listener)
     return () => ipcRenderer.removeListener('shell:state', listener)
+  },
+  onFocusAddressBar: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on('chrome:focus-address-bar', listener)
+    return () => ipcRenderer.removeListener('chrome:focus-address-bar', listener)
+  },
+  onToggleFind: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on('chrome:toggle-find', listener)
+    return () => ipcRenderer.removeListener('chrome:toggle-find', listener)
+  },
+  onFindResult: (cb: (result: FindResult) => void) => {
+    const listener = (_e: unknown, result: FindResult) => cb(result)
+    ipcRenderer.on('shell:find-result', listener)
+    return () => ipcRenderer.removeListener('shell:find-result', listener)
   }
 }
 
