@@ -6,13 +6,13 @@ import {
   clipboard,
   Menu,
   type ContextMenuParams,
-  type WebContents
+  type WebContents,
+  type Session
 } from 'electron'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
 import type { FindOptions, ShellState, TabState } from '../shared/types'
 import { CHROME_HEIGHT, NEWTAB_URL, HELIXIS_SCHEME } from '../shared/layout'
-import { browserSession } from './sessions'
 import { searchFor } from './settings'
 import { recordVisit, updateTitle } from './history'
 
@@ -36,6 +36,7 @@ const ERROR_PREFIX = `${HELIXIS_SCHEME}://error`
 export class TabManager {
   private window: BaseWindow
   private chrome: WebContentsView
+  private session: Session
   private tabs = new Map<string, Tab>()
   private order: string[] = []
   private activeTabId: string | null = null
@@ -45,9 +46,10 @@ export class TabManager {
    *  session can be persisted for restore on next launch. */
   private persistHandler: (() => void) | null = null
 
-  constructor(window: BaseWindow, chrome: WebContentsView) {
+  constructor(window: BaseWindow, chrome: WebContentsView, session: Session) {
     this.window = window
     this.chrome = chrome
+    this.session = session
     this.window.on('resize', () => this.layout())
     this.window.on('focus', () => this.layout())
   }
@@ -82,7 +84,7 @@ export class TabManager {
     const id = `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
     const view = new WebContentsView({
       webPreferences: {
-        session: browserSession(),
+        session: this.session,
         // Web pages are untrusted: sandbox, context isolation on, no Node.
         sandbox: true,
         contextIsolation: true,

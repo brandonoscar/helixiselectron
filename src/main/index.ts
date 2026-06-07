@@ -1,58 +1,15 @@
-import { join } from 'node:path'
-import { app, BaseWindow, WebContentsView, protocol } from 'electron'
-import { TabManager } from './TabManager'
+import { app, protocol } from 'electron'
 import { registerIpc } from './ipc'
 import { installAppMenu } from './menu'
-import { DownloadManager } from './downloads'
-import { installPermissionHandlers } from './permissions'
 import { setBookmarksNotifier } from './bookmarks'
-import { browserSession } from './sessions'
-import { readJSON, writeJSON, debounce } from './store'
-import { getSettings, homeUrl, searchUrl } from './settings'
+import {
+  createBrowserWindow,
+  focusedController,
+  broadcast,
+  flushSessions,
+  windowCount
+} from './windows'
 import { HELIXIS_SCHEME } from '../shared/layout'
-import { newtabHTML } from './newtab'
-import { errorPageHTML } from './errorpage'
-
-const WINDOW_STATE_FILE = 'window-state.json'
-const SESSION_FILE = 'session.json'
-
-interface WindowState {
-  width: number
-  height: number
-  x?: number
-  y?: number
-  maximized?: boolean
-}
-
-interface SessionState {
-  tabs: string[]
-  active: number
-}
-
-/** Serve Helixis-branded pages (new-tab and error pages) over helixis://. */
-function handleHelixisRequest(request: Request): Response {
-  try {
-    const url = new URL(request.url)
-    if (url.hostname === 'newtab') {
-      return new Response(newtabHTML(searchUrl()), {
-        headers: { 'content-type': 'text/html; charset=utf-8' }
-      })
-    }
-    if (url.hostname === 'error') {
-      const html = errorPageHTML(
-        url.searchParams.get('u') ?? '',
-        url.searchParams.get('code') ?? '',
-        url.searchParams.get('msg') ?? ''
-      )
-      return new Response(html, {
-        headers: { 'content-type': 'text/html; charset=utf-8' }
-      })
-    }
-    return new Response('Not found', { status: 404 })
-  } catch {
-    return new Response('Error', { status: 500 })
-  }
-}
 
 // The custom scheme must be registered as privileged before the app is ready so
 // pages served over helixis:// behave like normal secure, standard-origin pages.
@@ -64,10 +21,8 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 // --- Chrome DevTools Protocol -------------------------------------------------
-// Expose CDP so the Weeks 3-4 execution layer (Playwright via
-// chromium.connectOverCDP) can attach to this exact headed browser process —
-// the architectural reason to embed CDP in the shell rather than spawning a
-// separate, more-detectable headless browser (report Risk 4).
+// Expose CDP so an execution layer (Playwright via chromium.connectOverCDP) can
+// attach to this exact headed browser process.
 const cdpPort = resolveCdpPort()
 if (cdpPort !== null) {
   app.commandLine.appendSwitch('remote-debugging-port', String(cdpPort))
@@ -81,110 +36,23 @@ function resolveCdpPort(): number | null {
     const n = Number(fromEnv)
     return Number.isInteger(n) && n > 0 ? n : null
   }
-  // On by default in dev; opt-in for packaged builds via HELIXIS_CDP_PORT.
   return app.isPackaged ? null : 9222
 }
 
-let tabManager: TabManager | null = null
-
-function saveWindowState(window: BaseWindow): void {
-  const maximized = window.isMaximized()
-  const prev = readJSON<WindowState>(WINDOW_STATE_FILE, { width: 1440, height: 900 })
-  const next: WindowState = { ...prev, maximized }
-  if (!maximized) {
-    const b = window.getBounds()
-    next.width = b.width
-    next.height = b.height
-    next.x = b.x
-    next.y = b.y
-  }
-  writeJSON(WINDOW_STATE_FILE, next)
-}
-
-function createWindow(): void {
-  const ws = readJSON<WindowState>(WINDOW_STATE_FILE, { width: 1440, height: 900 })
-  const window = new BaseWindow({
-    width: ws.width,
-    height: ws.height,
-    x: ws.x,
-    y: ws.y,
-    minWidth: 900,
-    minHeight: 600,
-    title: 'Helixis',
-    backgroundColor: '#0f1115'
-  })
-  if (ws.maximized) window.maximize()
-
-  const persistWindow = debounce(() => saveWindowState(window), 400)
-  window.on('resize', persistWindow)
-  window.on('move', persistWindow)
-  window.on('close', () => saveWindowState(window))
-
-  // The chrome view hosts the React UI (sidebar + tab bar) and spans the whole
-  // window. Content tab views are layered on top of it.
-  const chrome = new WebContentsView({
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  })
-  window.contentView.addChildView(chrome)
-
-  tabManager = new TabManager(window, chrome)
-
-  // Downloads (saved to the OS Downloads folder; progress pushed to the UI) and
-  // permission prompts both operate on the tabs' session.
-  const downloads = new DownloadManager(browserSession(), (items) => {
-    if (!chrome.webContents.isDestroyed()) chrome.webContents.send('shell:downloads', items)
-  })
-  installPermissionHandlers(browserSession())
-  setBookmarksNotifier((items) => {
-    if (!chrome.webContents.isDestroyed()) chrome.webContents.send('shell:bookmarks', items)
-  })
-
-  registerIpc(tabManager, downloads, cdpPort)
-  installAppMenu(tabManager)
-
-  // Persist the open-tab session (debounced) for restore on next launch.
-  const persistSession = debounce(() => {
-    if (tabManager) writeJSON(SESSION_FILE, tabManager.serialize())
-  }, 500)
-  tabManager.setPersistHandler(persistSession)
-
-  if (process.env.ELECTRON_RENDERER_URL) {
-    chrome.webContents.loadURL(process.env.ELECTRON_RENDERER_URL)
-  } else {
-    chrome.webContents.loadFile(join(__dirname, '../renderer/index.html'))
-  }
-
-  chrome.webContents.once('did-finish-load', () => {
-    const [w, h] = window.getContentSize()
-    chrome.setBounds({ x: 0, y: 0, width: w, height: h })
-    // Restore last session's tabs (if enabled), or open the home page. An
-    // explicit HELIXIS_HOME override always wins (used in dev/testing).
-    const override = process.env.HELIXIS_HOME
-    const session = readJSON<SessionState>(SESSION_FILE, { tabs: [], active: 0 })
-    if (override) tabManager?.createTab(override)
-    else if (!(getSettings().restoreSession && tabManager?.restore(session)))
-      tabManager?.createTab(homeUrl())
-  })
-}
-
-/** Pull the first http(s) URL out of process argv (used when the OS launches us
- *  to open a link, on Windows/Linux). */
+/** Pull the first http(s) URL out of argv (used when the OS launches us to open
+ *  a link, on Windows/Linux). */
 function httpUrlFromArgv(argv: string[]): string | null {
   return argv.find((a) => /^https?:\/\//i.test(a)) ?? null
 }
 
 function openIncomingUrl(url: string): void {
-  const win = BaseWindow.getAllWindows()[0]
-  if (win) {
-    if (win.isMinimized()) win.restore()
-    win.focus()
+  const c = focusedController()
+  if (c) {
+    c.focus()
+    c.tabManager.createTab(url)
+  } else {
+    createBrowserWindow({ initialUrl: url })
   }
-  tabManager?.createTab(url)
 }
 
 // Single-instance: a second launch focuses the existing window (and opens any
@@ -196,13 +64,7 @@ if (!gotInstanceLock) {
   app.on('second-instance', (_event, argv) => {
     const url = httpUrlFromArgv(argv)
     if (url) openIncomingUrl(url)
-    else {
-      const win = BaseWindow.getAllWindows()[0]
-      if (win) {
-        if (win.isMinimized()) win.restore()
-        win.focus()
-      }
-    }
+    else focusedController()?.focus()
   })
 
   // macOS delivers links to open via this event.
@@ -212,28 +74,23 @@ if (!gotInstanceLock) {
   })
 
   app.whenReady().then(() => {
-    // Register the helixis:// handler on the *same* session the tabs use (a
-    // custom persistent partition) — protocol handlers are per-session, and the
-    // default session's registry does not apply to other partitions. Also
-    // register on the default session for completeness.
-    protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
-    browserSession().protocol.handle(HELIXIS_SCHEME, handleHelixisRequest)
+    registerIpc(cdpPort)
+    setBookmarksNotifier((items) => broadcast('shell:bookmarks', items))
+    installAppMenu({
+      focused: () => focusedController()?.tabManager ?? null,
+      newWindow: () => createBrowserWindow({}),
+      newPrivateWindow: () => createBrowserWindow({ incognito: true })
+    })
 
-    createWindow()
-
-    // If launched with a URL (Windows/Linux), open it.
-    const launchUrl = httpUrlFromArgv(process.argv)
-    if (launchUrl) tabManager?.createTab(launchUrl)
+    createBrowserWindow({ restore: true, initialUrl: httpUrlFromArgv(process.argv) ?? undefined })
 
     app.on('activate', () => {
-      if (BaseWindow.getAllWindows().length === 0) createWindow()
+      if (windowCount() === 0) createBrowserWindow({ restore: true })
     })
   })
 }
 
-app.on('before-quit', () => {
-  if (tabManager) writeJSON(SESSION_FILE, tabManager.serialize())
-})
+app.on('before-quit', () => flushSessions())
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

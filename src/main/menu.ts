@@ -1,13 +1,22 @@
 import { app, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import type { TabManager } from './TabManager'
 
+export interface MenuActions {
+  /** TabManager of the currently focused window. */
+  focused: () => TabManager | null
+  newWindow: () => void
+  newPrivateWindow: () => void
+}
+
 /**
  * Builds and installs the application menu. Accelerators here double as the
  * browser's global keyboard shortcuts — application-menu accelerators fire
- * regardless of which WebContents (chrome or page) currently has focus.
+ * regardless of which WebContents (chrome or page) currently has focus, and act
+ * on the focused window.
  */
-export function installAppMenu(tabs: TabManager): void {
+export function installAppMenu(actions: MenuActions): void {
   const isMac = process.platform === 'darwin'
+  const tabs = (): TabManager | null => actions.focused()
 
   const template: MenuItemConstructorOptions[] = [
     ...(isMac
@@ -34,28 +43,38 @@ export function installAppMenu(tabs: TabManager): void {
         {
           label: 'New Tab',
           accelerator: 'CmdOrCtrl+T',
-          click: () => tabs.newTab()
+          click: () => tabs()?.newTab()
+        },
+        {
+          label: 'New Window',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => actions.newWindow()
+        },
+        {
+          label: 'New Private Window',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => actions.newPrivateWindow()
         },
         {
           label: 'Close Tab',
           accelerator: 'CmdOrCtrl+W',
-          click: () => tabs.closeActive()
+          click: () => tabs()?.closeActive()
         },
         {
           label: 'Reopen Closed Tab',
           accelerator: 'CmdOrCtrl+Shift+T',
-          click: () => tabs.reopenClosedTab()
+          click: () => tabs()?.reopenClosedTab()
         },
         { type: 'separator' },
         {
           label: 'Print…',
           accelerator: 'CmdOrCtrl+P',
-          click: () => tabs.printActive()
+          click: () => tabs()?.printActive()
         },
         {
           label: 'Save as PDF…',
           accelerator: 'CmdOrCtrl+Shift+P',
-          click: () => tabs.printToPDFActive()
+          click: () => tabs()?.printToPDFActive()
         },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
@@ -75,7 +94,7 @@ export function installAppMenu(tabs: TabManager): void {
         {
           label: 'Find…',
           accelerator: 'CmdOrCtrl+F',
-          click: () => tabs.toggleFind()
+          click: () => tabs()?.toggleFind()
         }
       ]
     },
@@ -85,28 +104,28 @@ export function installAppMenu(tabs: TabManager): void {
         {
           label: 'Reload',
           accelerator: 'CmdOrCtrl+R',
-          click: () => tabs.reloadActive(false)
+          click: () => tabs()?.reloadActive(false)
         },
         {
           label: 'Force Reload',
           accelerator: 'CmdOrCtrl+Shift+R',
-          click: () => tabs.reloadActive(true)
+          click: () => tabs()?.reloadActive(true)
         },
         {
           label: 'Toggle Developer Tools',
           accelerator: isMac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
-          click: () => tabs.toggleDevTools()
+          click: () => tabs()?.toggleDevTools()
         },
         { type: 'separator' },
         {
           label: 'Actual Size',
           accelerator: 'CmdOrCtrl+0',
-          click: () => tabs.zoomReset()
+          click: () => tabs()?.zoomReset()
         },
         {
           label: 'Zoom In',
           accelerator: 'CmdOrCtrl+Plus',
-          click: () => tabs.zoomIn()
+          click: () => tabs()?.zoomIn()
         },
         {
           // Secondary accelerator so both Cmd+= and Cmd++ work.
@@ -114,12 +133,12 @@ export function installAppMenu(tabs: TabManager): void {
           accelerator: 'CmdOrCtrl+=',
           acceleratorWorksWhenHidden: true,
           visible: false,
-          click: () => tabs.zoomIn()
+          click: () => tabs()?.zoomIn()
         },
         {
           label: 'Zoom Out',
           accelerator: 'CmdOrCtrl+-',
-          click: () => tabs.zoomOut()
+          click: () => tabs()?.zoomOut()
         },
         { type: 'separator' },
         { role: 'togglefullscreen' }
@@ -131,12 +150,12 @@ export function installAppMenu(tabs: TabManager): void {
         {
           label: 'Back',
           accelerator: isMac ? 'Cmd+Left' : 'Alt+Left',
-          click: () => tabs.backActive()
+          click: () => tabs()?.backActive()
         },
         {
           label: 'Forward',
           accelerator: isMac ? 'Cmd+Right' : 'Alt+Right',
-          click: () => tabs.forwardActive()
+          click: () => tabs()?.forwardActive()
         }
       ]
     },
@@ -146,18 +165,18 @@ export function installAppMenu(tabs: TabManager): void {
         {
           label: 'Select Next Tab',
           accelerator: 'Ctrl+Tab',
-          click: () => tabs.selectNextTab()
+          click: () => tabs()?.selectNextTab()
         },
         {
           label: 'Select Previous Tab',
           accelerator: 'Ctrl+Shift+Tab',
-          click: () => tabs.selectPrevTab()
+          click: () => tabs()?.selectPrevTab()
         },
         { type: 'separator' },
         {
           label: 'Focus Address Bar',
           accelerator: 'CmdOrCtrl+L',
-          click: () => tabs.focusAddressBar()
+          click: () => tabs()?.focusAddressBar()
         },
         { type: 'separator' },
         { role: 'minimize' },

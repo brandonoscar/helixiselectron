@@ -71,5 +71,9 @@ npm run package      # build + electron-builder installers
 - **Error pages** for failed loads (keeps the original URL in the address bar).
 - **Window-state + session restore**: window size and open tabs return on next
   launch.
+- **History + address-bar autocomplete**, **bookmarks** (star + popover), and a
+  **settings** panel (search engine, startup page, clear data, default browser).
+- **Multiple windows** and **private windows** (ephemeral, non-persistent
+  session), **single-instance** focus, **print / save-as-PDF**, and spellcheck.
 - `target=_blank` / `window.open` open as new tabs; Google OAuth opens in the
   system browser. Logins persist across restarts.

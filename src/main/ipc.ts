@@ -1,18 +1,21 @@
-import { app, ipcMain } from 'electron'
-import type { TabManager } from './TabManager'
-import type { DownloadManager } from './downloads'
+import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { controllerForSender } from './windows'
 import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
 import { query as queryHistory, clearHistory } from './history'
 import * as bookmarks from './bookmarks'
 import { browserSession } from './sessions'
 import type { AppInfo, CreateTabOptions, FindOptions, Settings } from '../shared/types'
 
-export function registerIpc(
-  tabs: TabManager,
-  downloads: DownloadManager,
-  cdpPort: number | null
-): void {
-  ipcMain.handle('shell:getState', () => tabs.getState())
+/** Resolve the TabManager / DownloadManager for the window that sent the IPC. */
+function tabsFor(e: IpcMainInvokeEvent) {
+  return controllerForSender(e.sender)?.tabManager ?? null
+}
+function downloadsFor(e: IpcMainInvokeEvent) {
+  return controllerForSender(e.sender)?.downloads ?? null
+}
+
+export function registerIpc(cdpPort: number | null): void {
+  ipcMain.handle('shell:getState', (e) => tabsFor(e)?.getState() ?? { tabs: [], activeTabId: null })
 
   ipcMain.handle('app:info', (): AppInfo => ({
     version: app.getVersion(),
@@ -22,27 +25,27 @@ export function registerIpc(
     cdpPort
   }))
 
-  ipcMain.handle('tabs:create', (_e, opts: CreateTabOptions) =>
-    tabs.createTab(opts.url, opts.activate ?? true)
+  ipcMain.handle('tabs:create', (e, opts: CreateTabOptions) =>
+    tabsFor(e)?.createTab(opts.url, opts.activate ?? true)
   )
-  ipcMain.handle('tabs:close', (_e, tabId: string) => tabs.closeTab(tabId))
-  ipcMain.handle('tabs:activate', (_e, tabId: string) => tabs.activateTab(tabId))
-  ipcMain.handle('tabs:navigate', (_e, p: { id: string; url: string }) =>
-    tabs.navigate(p.id, p.url)
+  ipcMain.handle('tabs:close', (e, tabId: string) => tabsFor(e)?.closeTab(tabId))
+  ipcMain.handle('tabs:activate', (e, tabId: string) => tabsFor(e)?.activateTab(tabId))
+  ipcMain.handle('tabs:navigate', (e, p: { id: string; url: string }) =>
+    tabsFor(e)?.navigate(p.id, p.url)
   )
-  ipcMain.handle('tabs:goBack', (_e, tabId: string) => tabs.goBack(tabId))
-  ipcMain.handle('tabs:goForward', (_e, tabId: string) => tabs.goForward(tabId))
-  ipcMain.handle('tabs:reload', (_e, tabId: string) => tabs.reload(tabId))
-  ipcMain.handle('tabs:find', (_e, p: { text: string; opts?: FindOptions }) =>
-    tabs.find(p.text, p.opts)
+  ipcMain.handle('tabs:goBack', (e, tabId: string) => tabsFor(e)?.goBack(tabId))
+  ipcMain.handle('tabs:goForward', (e, tabId: string) => tabsFor(e)?.goForward(tabId))
+  ipcMain.handle('tabs:reload', (e, tabId: string) => tabsFor(e)?.reload(tabId))
+  ipcMain.handle('tabs:find', (e, p: { text: string; opts?: FindOptions }) =>
+    tabsFor(e)?.find(p.text, p.opts)
   )
-  ipcMain.handle('tabs:stopFind', () => tabs.stopFind())
+  ipcMain.handle('tabs:stopFind', (e) => tabsFor(e)?.stopFind())
 
-  ipcMain.handle('downloads:list', () => downloads.list())
-  ipcMain.handle('downloads:open', (_e, id: string) => downloads.open(id))
-  ipcMain.handle('downloads:showInFolder', (_e, id: string) => downloads.showInFolder(id))
-  ipcMain.handle('downloads:cancel', (_e, id: string) => downloads.cancel(id))
-  ipcMain.handle('downloads:clear', () => downloads.clear())
+  ipcMain.handle('downloads:list', (e) => downloadsFor(e)?.list() ?? [])
+  ipcMain.handle('downloads:open', (e, id: string) => downloadsFor(e)?.open(id))
+  ipcMain.handle('downloads:showInFolder', (e, id: string) => downloadsFor(e)?.showInFolder(id))
+  ipcMain.handle('downloads:cancel', (e, id: string) => downloadsFor(e)?.cancel(id))
+  ipcMain.handle('downloads:clear', (e) => downloadsFor(e)?.clear())
 
   ipcMain.handle('settings:get', () => getSettings())
   ipcMain.handle('settings:set', (_e, patch: Partial<Settings>) => setSettings(patch))
@@ -52,6 +55,12 @@ export function registerIpc(
     await ses.clearStorageData()
     await ses.clearCache()
     clearHistory()
+  })
+  ipcMain.handle('settings:isDefaultBrowser', () => app.isDefaultProtocolClient('http'))
+  ipcMain.handle('settings:makeDefaultBrowser', () => {
+    app.setAsDefaultProtocolClient('http')
+    app.setAsDefaultProtocolClient('https')
+    return app.isDefaultProtocolClient('http')
   })
 
   ipcMain.handle('history:query', (_e, text: string) => queryHistory(text))
@@ -66,12 +75,5 @@ export function registerIpc(
     return bookmarks.list()
   })
 
-  ipcMain.handle('settings:isDefaultBrowser', () => app.isDefaultProtocolClient('http'))
-  ipcMain.handle('settings:makeDefaultBrowser', () => {
-    app.setAsDefaultProtocolClient('http')
-    app.setAsDefaultProtocolClient('https')
-    return app.isDefaultProtocolClient('http')
-  })
-
-  ipcMain.handle('overlay:set', (_e, open: boolean) => tabs.setChromeOverlay(open))
+  ipcMain.handle('overlay:set', (e, open: boolean) => tabsFor(e)?.setChromeOverlay(open))
 }
