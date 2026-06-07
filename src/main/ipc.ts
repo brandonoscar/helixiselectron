@@ -4,7 +4,11 @@ import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
 import { query as queryHistory, clearHistory } from './history'
 import * as bookmarks from './bookmarks'
 import { browserSession } from './sessions'
+import { readJSON, writeJSON } from './store'
 import type { AppInfo, CreateTabOptions, FindOptions, Settings } from '../shared/types'
+
+/** Persistent store backing the side panel's `chrome.storage.local` shim. */
+const SIDEBAR_STATE_FILE = 'sidebar-state.json'
 
 /** Resolve the TabManager / DownloadManager for the window that sent the IPC. */
 function tabsFor(e: IpcMainInvokeEvent) {
@@ -76,4 +80,20 @@ export function registerIpc(cdpPort: number | null): void {
   })
 
   ipcMain.handle('overlay:set', (e, open: boolean) => tabsFor(e)?.setChromeOverlay(open))
+
+  // ---- Assistant side panel --------------------------------------------
+  ipcMain.handle('sidebar:set', (e, open: boolean) => tabsFor(e)?.setSidebar(open))
+  ipcMain.handle('sidebar:active-tab', (e) => tabsFor(e)?.activeTabInfo() ?? null)
+  ipcMain.handle('sidebar:exec', (e, code: string) => tabsFor(e)?.execInActive(code) ?? null)
+
+  ipcMain.handle('sidebar:storage:get', (_e, keys: string[]) => {
+    const store = readJSON<Record<string, unknown>>(SIDEBAR_STATE_FILE, {})
+    const out: Record<string, unknown> = {}
+    for (const key of keys) if (key in store) out[key] = store[key]
+    return out
+  })
+  ipcMain.handle('sidebar:storage:set', (_e, patch: Record<string, unknown>) => {
+    const store = readJSON<Record<string, unknown>>(SIDEBAR_STATE_FILE, {})
+    writeJSON(SIDEBAR_STATE_FILE, { ...store, ...patch })
+  })
 }

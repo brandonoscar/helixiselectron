@@ -7,8 +7,9 @@ No browser fork — a thin shell around Chromium via Electron.
 
 ```
 BaseWindow
-├── chrome  WebContentsView  → React UI (tab strip + toolbar), spans whole window
-└── tab[]   WebContentsView  → web content, layered over the region below the chrome
+├── chrome   WebContentsView  → React UI (tab strip + toolbar), spans whole window
+├── tab[]    WebContentsView  → web content, layered over the region below the chrome
+└── sidebar  WebContentsView  → Assistant side panel (Helixis Copilot), right edge
 ```
 
 - **`BaseWindow` + `WebContentsView`** — the modern replacement for the
@@ -77,3 +78,10 @@ npm run package      # build + electron-builder installers
   session), **single-instance** focus, **print / save-as-PDF**, and spellcheck.
 - `target=_blank` / `window.open` open as new tabs; Google OAuth opens in the
   system browser. Logins persist across restarts.
+- **Assistant side panel** — an **Assistant** button in the top-right of the
+  toolbar toggles the Helixis Copilot panel (chat, reminders, actions, page
+  context) on the right edge; the active page shrinks to make room. The panel is
+  the same UI shipped as the Helixis Copilot browser extension
+  (`src/renderer/sidebar/`), running as a native `WebContentsView`. A small
+  `chrome.*` shim in `src/preload/sidebar.ts` backs `storage`/`tabs`/`scripting`
+  with the app's IPC so the extension's `panel.js` runs unchanged.

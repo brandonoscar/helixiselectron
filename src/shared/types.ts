@@ -131,6 +131,9 @@ export interface HelixisApi {
   /** Raise the chrome view above the page for a full-area overlay (settings,
    *  autocomplete), and restore the page on close. */
   setOverlay(open: boolean): Promise<void>
+  /** Open or close the Assistant side panel (Helixis Copilot). When open, the
+   *  active page's content view shrinks to leave room on the right. */
+  setSidebar(open: boolean): Promise<void>
   /** Subscribe to browser-state changes. Returns an unsubscribe function. */
   onStateChanged(cb: (state: ShellState) => void): () => void
   /** Subscribe to the downloads list. Returns an unsubscribe function. */

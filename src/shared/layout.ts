@@ -7,6 +7,10 @@ export const TOOLBAR_HEIGHT = 44
 /** Total height of the browser chrome above the page content. */
 export const CHROME_HEIGHT = TABSTRIP_HEIGHT + TOOLBAR_HEIGHT
 
+/** Width of the Assistant side panel (Helixis Copilot) when it is open. The
+ *  active page's content view shrinks by this amount to make room on the right. */
+export const SIDEBAR_WIDTH = 360
+
 /** Single persistent session so logins survive restarts. */
 export const DEFAULT_PROFILE_ID = 'default'
 export const DEFAULT_PROFILE_NAME = 'Default'

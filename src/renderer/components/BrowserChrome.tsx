@@ -22,7 +22,14 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
   const [findOpen, setFindOpen] = useState(false)
   const [findResult, setFindResult] = useState<FindResult | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const urlRef = useRef<HTMLInputElement>(null)
+
+  const toggleSidebar = (): void => {
+    const next = !sidebarOpen
+    setSidebarOpen(next)
+    window.helixis.setSidebar(next)
+  }
 
   // Keep the URL bar in sync with the active tab unless the user is typing.
   useEffect(() => {
@@ -206,6 +213,20 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
         <DownloadsPanel />
         <button className="nav-btn" title="Settings" onClick={() => setSettingsOpen(true)}>
           ⚙
+        </button>
+        <button
+          className={`assistant-btn ${sidebarOpen ? 'active' : ''}`}
+          title="Toggle Assistant"
+          aria-pressed={sidebarOpen}
+          onClick={toggleSidebar}
+        >
+          <svg className="assistant-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M8 1.5l1.2 3.6a3 3 0 0 0 1.9 1.9L14.5 8l-3.4 1a3 3 0 0 0-1.9 1.9L8 14.5l-1.2-3.6a3 3 0 0 0-1.9-1.9L1.5 8l3.4-1a3 3 0 0 0 1.9-1.9L8 1.5z"
+              fill="currentColor"
+            />
+          </svg>
+          Assistant
         </button>
       </div>
 

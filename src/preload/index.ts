@@ -74,6 +74,8 @@ const api: HelixisApi = {
   },
   setOverlay: (open: boolean) =>
     ipcRenderer.invoke('overlay:set', open) as Promise<void>,
+  setSidebar: (open: boolean) =>
+    ipcRenderer.invoke('sidebar:set', open) as Promise<void>,
   onStateChanged: (cb: (state: ShellState) => void) => {
     const listener = (_e: unknown, state: ShellState) => cb(state)
     ipcRenderer.on('shell:state', listener)

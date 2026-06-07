@@ -39,6 +39,7 @@ export interface WindowOptions {
 export class WindowController {
   readonly window: BaseWindow
   readonly chrome: WebContentsView
+  readonly sidebar: WebContentsView
   readonly tabManager: TabManager
   readonly downloads: DownloadManager
   readonly incognito: boolean
@@ -82,7 +83,20 @@ export class WindowController {
     })
     this.window.contentView.addChildView(this.chrome)
 
-    this.tabManager = new TabManager(this.window, this.chrome, ses)
+    // The Assistant side panel (Helixis Copilot). It loads the extension's panel
+    // UI and talks to the app through the sidebar preload's `chrome.*` shim.
+    this.sidebar = new WebContentsView({
+      webPreferences: {
+        preload: join(__dirname, '../preload/sidebar.js'),
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    })
+    this.sidebar.setVisible(false)
+    this.window.contentView.addChildView(this.sidebar)
+
+    this.tabManager = new TabManager(this.window, this.chrome, this.sidebar, ses)
     this.downloads = new DownloadManager(ses, (items) => this.send('shell:downloads', items))
 
     // Only normal windows persist their tab session.
@@ -99,8 +113,10 @@ export class WindowController {
 
     if (process.env.ELECTRON_RENDERER_URL) {
       this.chrome.webContents.loadURL(process.env.ELECTRON_RENDERER_URL)
+      this.sidebar.webContents.loadURL(`${process.env.ELECTRON_RENDERER_URL}/sidebar/panel.html`)
     } else {
       this.chrome.webContents.loadFile(join(__dirname, '../renderer/index.html'))
+      this.sidebar.webContents.loadFile(join(__dirname, '../renderer/sidebar/panel.html'))
     }
 
     this.chrome.webContents.once('did-finish-load', () => {
@@ -155,7 +171,9 @@ export function createBrowserWindow(opts: WindowOptions = {}): WindowController 
 }
 
 export function controllerForSender(sender: WebContents): WindowController | null {
-  for (const c of controllers) if (c.chrome.webContents === sender) return c
+  for (const c of controllers) {
+    if (c.chrome.webContents === sender || c.sidebar.webContents === sender) return c
+  }
   return null
 }
 

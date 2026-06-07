@@ -545,3 +545,35 @@ body,
   justify-content: center;
   color: var(--muted);
 }
+
+/* --- assistant toggle button --- */
+.assistant-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 7px 12px;
+  border-radius: 16px;
+  white-space: nowrap;
+}
+.assistant-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--accent);
+}
+.assistant-btn.active {
+  background: rgba(91, 140, 255, 0.16);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.assistant-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}

@@ -12,7 +12,7 @@ import {
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
 import type { FindOptions, ShellState, TabState } from '../shared/types'
-import { CHROME_HEIGHT, NEWTAB_URL, HELIXIS_SCHEME } from '../shared/layout'
+import { CHROME_HEIGHT, SIDEBAR_WIDTH, NEWTAB_URL, HELIXIS_SCHEME } from '../shared/layout'
 import { searchFor } from './settings'
 import { recordVisit, updateTitle } from './history'
 
@@ -36,6 +36,9 @@ const ERROR_PREFIX = `${HELIXIS_SCHEME}://error`
 export class TabManager {
   private window: BaseWindow
   private chrome: WebContentsView
+  /** The Assistant side panel (Helixis Copilot), pinned to the right edge. */
+  private sidebar: WebContentsView
+  private sidebarOpen = false
   private session: Session
   private tabs = new Map<string, Tab>()
   private order: string[] = []
@@ -46,9 +49,15 @@ export class TabManager {
    *  session can be persisted for restore on next launch. */
   private persistHandler: (() => void) | null = null
 
-  constructor(window: BaseWindow, chrome: WebContentsView, session: Session) {
+  constructor(
+    window: BaseWindow,
+    chrome: WebContentsView,
+    sidebar: WebContentsView,
+    session: Session
+  ) {
     this.window = window
     this.chrome = chrome
+    this.sidebar = sidebar
     this.session = session
     this.window.on('resize', () => this.layout())
     this.window.on('focus', () => this.layout())
@@ -58,24 +67,66 @@ export class TabManager {
 
   private contentBounds() {
     const [width, height] = this.window.getContentSize()
+    const reserved = this.sidebarOpen ? SIDEBAR_WIDTH : 0
     return {
       x: 0,
       y: CHROME_HEIGHT,
-      width,
+      width: Math.max(0, width - reserved),
       height: Math.max(0, height - CHROME_HEIGHT)
     }
   }
 
-  /** Reposition the chrome view (full window) and the active content view. */
+  /** Reposition the chrome view (full window), the active content view, and the
+   *  Assistant side panel (right edge, below the chrome). */
   layout(): void {
     const [width, height] = this.window.getContentSize()
     this.chrome.setBounds({ x: 0, y: 0, width, height })
+
+    this.sidebar.setVisible(this.sidebarOpen)
+    if (this.sidebarOpen) {
+      this.sidebar.setBounds({
+        x: Math.max(0, width - SIDEBAR_WIDTH),
+        y: CHROME_HEIGHT,
+        width: SIDEBAR_WIDTH,
+        height: Math.max(0, height - CHROME_HEIGHT)
+      })
+    }
+
     const bounds = this.contentBounds()
     for (const tab of this.tabs.values()) {
       const isActive = tab.id === this.activeTabId
       tab.view.setVisible(isActive)
       if (isActive) tab.view.setBounds(bounds)
     }
+  }
+
+  // ---- assistant side panel ---------------------------------------------
+
+  /** Open or close the Assistant side panel. */
+  setSidebar(open: boolean): void {
+    if (this.sidebarOpen === open) return
+    this.sidebarOpen = open
+    // Keep the panel above the page so it is never hidden by the active view.
+    if (open) this.window.contentView.addChildView(this.sidebar)
+    this.layout()
+  }
+
+  isSidebarOpen(): boolean {
+    return this.sidebarOpen
+  }
+
+  /** Active tab info for the side panel's `chrome.tabs.query` shim. */
+  activeTabInfo(): { id: number; url: string; title: string } | null {
+    const wc = this.activeWc()
+    if (!wc) return null
+    return { id: wc.id, url: wc.getURL(), title: wc.getTitle() }
+  }
+
+  /** Run code in the active page for the side panel's `chrome.scripting` shim. */
+  execInActive(code: string): Promise<unknown> {
+    const wc = this.activeWc()
+    if (!wc) return Promise.resolve(null)
+    return wc.executeJavaScript(code, true).catch(() => null)
   }
 
   // ---- tabs -------------------------------------------------------------
@@ -400,6 +451,9 @@ export class TabManager {
     } else if (active) {
       this.window.contentView.addChildView(active.view) // restore page on top
       active.view.setVisible(true)
+      // Re-raise the side panel so the chrome's opaque content region (which was
+      // lifted above it for the overlay) no longer covers the right strip.
+      if (this.sidebarOpen) this.window.contentView.addChildView(this.sidebar)
       this.layout()
     }
   }
