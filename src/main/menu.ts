@@ -6,6 +6,8 @@ export interface MenuActions {
   focused: () => TabManager | null
   newWindow: () => void
   newPrivateWindow: () => void
+  /** Show/hide the focused window's Helixis Copilot side panel. */
+  toggleCopilot: () => void
 }
 
 /**
@@ -101,6 +103,12 @@ export function installAppMenu(actions: MenuActions): void {
     {
       label: 'View',
       submenu: [
+        {
+          label: 'Toggle Helixis Copilot',
+          accelerator: 'CmdOrCtrl+E',
+          click: () => actions.toggleCopilot()
+        },
+        { type: 'separator' },
         {
           label: 'Reload',
           accelerator: 'CmdOrCtrl+R',

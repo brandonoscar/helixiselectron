@@ -45,6 +45,8 @@ export class TabManager {
   /** Called (debounced by the owner) whenever the open-tab set changes, so the
    *  session can be persisted for restore on next launch. */
   private persistHandler: (() => void) | null = null
+  /** Horizontal space reserved on the right (the docked copilot panel). */
+  private rightInset = 0
 
   constructor(window: BaseWindow, chrome: WebContentsView, session: Session) {
     this.window = window
@@ -61,9 +63,15 @@ export class TabManager {
     return {
       x: 0,
       y: CHROME_HEIGHT,
-      width,
+      width: Math.max(0, width - this.rightInset),
       height: Math.max(0, height - CHROME_HEIGHT)
     }
+  }
+
+  /** Reserve (or release) space on the right edge for the copilot panel. */
+  setRightInset(px: number): void {
+    this.rightInset = Math.max(0, px)
+    this.layout()
   }
 
   /** Reposition the chrome view (full window) and the active content view. */
