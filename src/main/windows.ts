@@ -1,6 +1,8 @@
 import { join } from 'node:path'
 import { BaseWindow, WebContentsView, type Session, type WebContents } from 'electron'
 import { TabManager } from './TabManager'
+import { CopilotPanel } from './copilot'
+import { COPILOT_WIDTH } from '../shared/layout'
 import { DownloadManager } from './downloads'
 import { installPermissionHandlers } from './permissions'
 import { registerHelixisProtocol } from './helixisProtocol'
@@ -42,6 +44,7 @@ export class WindowController {
   readonly tabManager: TabManager
   readonly downloads: DownloadManager
   readonly incognito: boolean
+  private copilot: CopilotPanel
 
   constructor(opts: WindowOptions = {}) {
     this.incognito = Boolean(opts.incognito)
@@ -83,6 +86,7 @@ export class WindowController {
     this.window.contentView.addChildView(this.chrome)
 
     this.tabManager = new TabManager(this.window, this.chrome, ses)
+    this.copilot = new CopilotPanel(this.window, ses)
     this.downloads = new DownloadManager(ses, (items) => this.send('shell:downloads', items))
 
     // Only normal windows persist their tab session.
@@ -124,6 +128,12 @@ export class WindowController {
       this.tabManager.createTab(this.incognito ? NEWTAB_URL : homeUrl())
     }
     if (opts.initialUrl) this.tabManager.createTab(opts.initialUrl)
+  }
+
+  /** Show/hide the docked copilot panel, resizing page content to fit. */
+  toggleCopilot(): void {
+    const open = this.copilot.toggle()
+    this.tabManager.setRightInset(open ? COPILOT_WIDTH : 0)
   }
 
   send(channel: string, payload: unknown): void {

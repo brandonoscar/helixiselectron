@@ -17,3 +17,6 @@ export const NEWTAB_URL = `${HELIXIS_SCHEME}://newtab`
 
 /** The home / new-tab page. */
 export const HOME_URL = NEWTAB_URL
+
+/** Width of the docked Helixis Copilot side panel. */
+export const COPILOT_WIDTH = 380

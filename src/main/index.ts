@@ -79,7 +79,8 @@ if (!gotInstanceLock) {
     installAppMenu({
       focused: () => focusedController()?.tabManager ?? null,
       newWindow: () => createBrowserWindow({}),
-      newPrivateWindow: () => createBrowserWindow({ incognito: true })
+      newPrivateWindow: () => createBrowserWindow({ incognito: true }),
+      toggleCopilot: () => focusedController()?.toggleCopilot()
     })
 
     createBrowserWindow({ restore: true, initialUrl: httpUrlFromArgv(process.argv) ?? undefined })
