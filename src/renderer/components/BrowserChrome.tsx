@@ -6,6 +6,12 @@ import { DownloadsPanel } from './DownloadsPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { Bookmarks } from './Bookmarks'
 
+// The deployed Helixis app (Chat / Inbox / Properties …). The "App" button in
+// the toolbar opens it as a full browser tab — the hybrid "jump to the full
+// app" entry point. Mirrors copilot.ts's default URL; the env override
+// (HELIXIS_COPILOT_URL) can be threaded through via IPC later.
+const HELIXIS_APP_URL = 'https://agentichelixis.vercel.app'
+
 interface SuggestRow {
   url: string
   primary: string
@@ -204,6 +210,13 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
         <Bookmarks url={activeTab?.url ?? ''} title={activeTab?.title ?? ''} />
         {findOpen && <FindBar result={findResult} onClose={closeFind} />}
         <DownloadsPanel />
+        <button
+          className="nav-btn app-btn"
+          title="Open the Helixis app"
+          onClick={() => window.helixis.tabs.create({ url: HELIXIS_APP_URL })}
+        >
+          App
+        </button>
         <button className="nav-btn" title="Settings" onClick={() => setSettingsOpen(true)}>
           ⚙
         </button>
