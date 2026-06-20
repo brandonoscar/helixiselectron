@@ -85,6 +85,14 @@ export interface AppInfo {
   cdpPort: number | null
 }
 
+/** Clean main-text of a browser page, extracted via Mozilla Readability, for
+ *  the copilot's "answer about this page" context. */
+export interface PageContext {
+  url: string
+  title: string
+  text: string
+}
+
 /** The API surface exposed on `window.helixis` by the preload bridge. */
 export interface HelixisApi {
   getState(): Promise<ShellState>
@@ -94,6 +102,11 @@ export interface HelixisApi {
   copilot: {
     /** Show/hide the docked Helixis Copilot side panel. */
     toggle(): Promise<void>
+  }
+  page: {
+    /** Clean main text of the active browser tab (Readability), or null when
+     *  there's no extractable web page. */
+    context(): Promise<PageContext | null>
   }
   tabs: {
     create(opts: CreateTabOptions): Promise<string>

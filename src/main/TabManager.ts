@@ -310,6 +310,12 @@ export class TabManager {
     return this.tabs.get(this.activeTabId)?.view.webContents ?? null
   }
 
+  /** Public accessor for the active tab's WebContents (used by page
+   *  extraction for the copilot). Null when there's no active tab. */
+  activeWebContents(): WebContents | null {
+    return this.activeWc()
+  }
+
   newTab(): void {
     this.createTab(NEWTAB_URL)
   }
