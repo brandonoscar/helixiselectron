@@ -18,6 +18,9 @@ const api: HelixisApi = {
   app: {
     info: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>
   },
+  copilot: {
+    toggle: () => ipcRenderer.invoke('copilot:toggle') as Promise<void>
+  },
   tabs: {
     create: (opts: CreateTabOptions) =>
       ipcRenderer.invoke('tabs:create', opts) as Promise<string>,

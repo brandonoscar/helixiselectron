@@ -41,6 +41,8 @@ export function registerIpc(cdpPort: number | null): void {
   )
   ipcMain.handle('tabs:stopFind', (e) => tabsFor(e)?.stopFind())
 
+  ipcMain.handle('copilot:toggle', (e) => controllerForSender(e.sender)?.toggleCopilot())
+
   ipcMain.handle('downloads:list', (e) => downloadsFor(e)?.list() ?? [])
   ipcMain.handle('downloads:open', (e, id: string) => downloadsFor(e)?.open(id))
   ipcMain.handle('downloads:showInFolder', (e, id: string) => downloadsFor(e)?.showInFolder(id))

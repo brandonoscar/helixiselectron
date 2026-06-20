@@ -91,6 +91,10 @@ export interface HelixisApi {
   app: {
     info(): Promise<AppInfo>
   }
+  copilot: {
+    /** Show/hide the docked Helixis Copilot side panel. */
+    toggle(): Promise<void>
+  }
   tabs: {
     create(opts: CreateTabOptions): Promise<string>
     close(tabId: string): Promise<void>
