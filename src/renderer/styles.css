@@ -11,7 +11,8 @@
   --border: #2a2f3a;
   --text: #e6e9ef;
   --muted: #8b93a3;
-  --accent: #5b8cff;
+  /* Helixis iris brand accent. */
+  --accent: #826eff;
 }
 
 * {
@@ -162,6 +163,28 @@ body,
   color: var(--border);
   cursor: default;
 }
+/* Helixis logo / home button (opens the app). */
+.logo-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  margin-right: 2px;
+  border-radius: 6px;
+}
+.logo-btn:hover {
+  background: rgba(130, 110, 255, 0.14);
+}
+/* Assistant (copilot) toggle button. */
+.assistant-btn {
+  color: var(--accent);
+}
+.assistant-btn:hover:not(:disabled) {
+  background: rgba(130, 110, 255, 0.14);
+}
 .urlform {
   flex: 1;
   min-width: 0;
@@ -209,7 +232,7 @@ body,
 }
 .url-suggest li.sel,
 .url-suggest li:hover {
-  background: rgba(91, 140, 255, 0.16);
+  background: rgba(130, 110, 255, 0.16);
 }
 .sugg-primary {
   white-space: nowrap;

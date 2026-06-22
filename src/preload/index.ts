@@ -7,6 +7,7 @@ import type {
   FindOptions,
   FindResult,
   HelixisApi,
+  PageContext,
   SearchEngine,
   Settings,
   ShellState,
@@ -17,6 +18,12 @@ const api: HelixisApi = {
   getState: () => ipcRenderer.invoke('shell:getState') as Promise<ShellState>,
   app: {
     info: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>
+  },
+  copilot: {
+    toggle: () => ipcRenderer.invoke('copilot:toggle') as Promise<void>
+  },
+  page: {
+    context: () => ipcRenderer.invoke('page:context') as Promise<PageContext | null>
   },
   tabs: {
     create: (opts: CreateTabOptions) =>

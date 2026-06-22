@@ -1,5 +1,6 @@
 import { app, ipcMain, type IpcMainInvokeEvent } from 'electron'
-import { controllerForSender } from './windows'
+import { controllerForSender, focusedController } from './windows'
+import { extractReadable } from './readable'
 import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
 import { query as queryHistory, clearHistory } from './history'
 import * as bookmarks from './bookmarks'
@@ -40,6 +41,16 @@ export function registerIpc(cdpPort: number | null): void {
     tabsFor(e)?.find(p.text, p.opts)
   )
   ipcMain.handle('tabs:stopFind', (e) => tabsFor(e)?.stopFind())
+
+  ipcMain.handle('copilot:toggle', (e) => controllerForSender(e.sender)?.toggleCopilot())
+
+  // Clean main-text of the focused window's active tab (Mozilla Readability),
+  // for the copilot's page context. Uses the focused window (the copilot panel
+  // is a different WebContents than the chrome, so we don't match on sender).
+  ipcMain.handle('page:context', () => {
+    const wc = focusedController()?.tabManager.activeWebContents()
+    return wc ? extractReadable(wc) : null
+  })
 
   ipcMain.handle('downloads:list', (e) => downloadsFor(e)?.list() ?? [])
   ipcMain.handle('downloads:open', (e, id: string) => downloadsFor(e)?.open(id))

@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { WebContentsView, shell, type BaseWindow, type Session } from 'electron'
 import { CHROME_HEIGHT, COPILOT_WIDTH } from '../shared/layout'
 
@@ -49,6 +50,9 @@ export class CopilotPanel {
   private create(): void {
     this.view = new WebContentsView({
       webPreferences: {
+        // Same preload as the chrome, so the hosted web app can pull the
+        // active tab's page context (window.helixis.page.context()).
+        preload: join(__dirname, '../preload/index.js'),
         session: this.session,
         sandbox: true,
         contextIsolation: true,
