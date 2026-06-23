@@ -19,5 +19,9 @@
     "src/renderer/**/*",
     "src/shared/**/*",
     "src/preload/index.d.ts"
+  ],
+  "exclude": [
+    "src/renderer/**/*.test.ts",
+    "src/renderer/**/*.test.tsx"
   ]
 }
