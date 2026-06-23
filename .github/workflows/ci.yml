@@ -1,0 +1,48 @@
+name: CI
+
+# No CI existed for this repo — Electron PRs were validated only by hand
+# (clone + build locally, or run + screenshot). This adds the missing gate:
+# typecheck + build catch compile/type breakage; the boot-smoke catches the
+# class of bug that compiles but dies on launch (bad path, null preload, a
+# main-process exception).
+
+on:
+  pull_request:
+  push:
+    branches: ['claude/vibrant-mayer-A1D3i']
+  workflow_dispatch:
+
+jobs:
+  build-and-smoke:
+    # 22.04 keeps the classic Electron runtime lib names (libasound2, etc.)
+    # rather than 24.04's *t64 renames, so the apt step stays stable.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Electron runtime libraries + xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb \
+            libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 \
+            libasound2 libxkbcommon0 libgtk-3-0 libxshmfence1 libxdamage1 \
+            libxrandr2 libxcomposite1 libxfixes3 libpango-1.0-0
+
+      - name: Boot smoke (headless launch)
+        run: xvfb-run -a node scripts/boot-smoke.mjs
