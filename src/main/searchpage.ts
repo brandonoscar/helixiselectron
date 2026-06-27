@@ -5,6 +5,8 @@
 // CORS, and no API key in the renderer. Same visual language as newtab.ts so
 // search feels like part of the browser, under the Helixis mark.
 
+import { NEWTAB_URL } from '../shared/layout'
+
 export interface SearchResultItem {
   title: string
   url: string
@@ -41,9 +43,13 @@ function hostOf(url: string): string {
 
 function resultRow(r: SearchResultItem): string {
   const safeUrl = esc(r.url)
+  const host = hostOf(r.url)
+  // Favicon via DuckDuckGo's icon service (privacy-respecting, not Google).
+  // onerror hides a broken icon so the row never shows a missing-image glyph.
+  const favicon = `<img class="favicon" src="https://icons.duckduckgo.com/ip3/${esc(host)}.ico" onerror="this.style.display='none'" alt="" />`
   return `
     <a class="result" href="${safeUrl}">
-      <div class="result-host">${esc(hostOf(r.url))}</div>
+      <div class="result-host">${favicon}${esc(host)}</div>
       <div class="result-title">${esc(r.title || r.url)}</div>
       ${r.snippet ? `<div class="result-snippet">${esc(r.snippet)}</div>` : ''}
     </a>`
@@ -81,7 +87,9 @@ export function searchResultsHTML(
     const answer = data.answer
       ? `<div class="answer"><div class="answer-label">Summary</div>${esc(data.answer)}</div>`
       : ''
-    body = answer + data.results.map(resultRow).join('')
+    const n = data.results.length
+    const count = `<div class="result-count">${n} result${n === 1 ? '' : 's'} for &ldquo;${q}&rdquo;</div>`
+    body = count + answer + data.results.map(resultRow).join('')
   }
 
   return `<!doctype html>
@@ -108,10 +116,18 @@ export function searchResultsHTML(
     backdrop-filter: blur(8px);
     border-bottom: 1px solid #1c212c;
   }
-  .brand { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+  .brand { display: flex; align-items: center; gap: 9px; flex-shrink: 0; text-decoration: none; color: inherit; }
   .mark { color: #5b8cff; font-size: 24px; line-height: 1; }
   .name { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
   form { flex: 1; max-width: 620px; position: relative; }
+  .recent {
+    position: absolute; left: 0; right: 0; top: calc(100% + 6px);
+    background: #161a22; border: 1px solid #2a2f3a; border-radius: 14px;
+    overflow: hidden; display: none; z-index: 20;
+    box-shadow: 0 12px 28px -8px rgba(0,0,0,0.55);
+  }
+  .recent-item { padding: 10px 16px; font-size: 14px; color: #cdd3de; cursor: pointer; }
+  .recent-item:hover { background: rgba(255,255,255,0.05); }
   input {
     width: 100%;
     padding: 11px 16px;
@@ -138,8 +154,10 @@ export function searchResultsHTML(
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
     color: #5b8cff; margin-bottom: 6px;
   }
+  .result-count { font-size: 12.5px; color: #8b93a3; margin-bottom: 18px; }
   .result { display: block; text-decoration: none; color: inherit; margin-bottom: 24px; }
-  .result-host { font-size: 12.5px; color: #8b93a3; margin-bottom: 2px; }
+  .result-host { font-size: 12.5px; color: #8b93a3; margin-bottom: 2px; display: flex; align-items: center; }
+  .favicon { width: 15px; height: 15px; border-radius: 3px; margin-right: 7px; flex-shrink: 0; }
   .result-title { font-size: 18px; color: #8ab4ff; line-height: 1.3; }
   .result:hover .result-title { text-decoration: underline; }
   .result-snippet { font-size: 13.5px; color: #b8bfcc; line-height: 1.5; margin-top: 4px; }
@@ -150,12 +168,48 @@ export function searchResultsHTML(
 </head>
 <body>
   <header>
-    <div class="brand"><span class="mark">◐</span><span class="name">Helixis</span></div>
-    <form action="${esc(searchAction)}" method="GET" autocomplete="off">
-      <input name="q" value="${q}" placeholder="Search the web" aria-label="Search" />
+    <a class="brand" href="${NEWTAB_URL}" title="Helixis home">
+      <span class="mark">◐</span><span class="name">Helixis</span>
+    </a>
+    <form id="searchform" action="${esc(searchAction)}" method="GET" autocomplete="off">
+      <input id="q" name="q" value="${q}" placeholder="Search the web" aria-label="Search" />
+      <div id="recent" class="recent"></div>
     </form>
   </header>
   <main>${body}</main>
+  <script>
+  (function () {
+    var KEY = 'helixis:recent'
+    var form = document.getElementById('searchform')
+    var input = document.getElementById('q')
+    var box = document.getElementById('recent')
+    function read() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch (e) { return [] } }
+    function write(a) { try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 8))) } catch (e) {} }
+    // Record the current query (most-recent-first, de-duped).
+    var cur = (new URLSearchParams(location.search).get('q') || '').trim()
+    if (cur) {
+      var a = read().filter(function (x) { return x.toLowerCase() !== cur.toLowerCase() })
+      a.unshift(cur)
+      write(a)
+    }
+    function render() {
+      var a = read()
+      box.textContent = ''
+      if (!a.length) { box.style.display = 'none'; return }
+      a.forEach(function (qq) {
+        var li = document.createElement('div')
+        li.className = 'recent-item'
+        li.textContent = qq // textContent → safe against crafted past queries
+        // mousedown (not click) so it fires before the input's blur hides the box
+        li.addEventListener('mousedown', function (e) { e.preventDefault(); input.value = qq; form.submit() })
+        box.appendChild(li)
+      })
+    }
+    input.addEventListener('focus', function () { render(); if (box.children.length) box.style.display = 'block' })
+    input.addEventListener('blur', function () { setTimeout(function () { box.style.display = 'none' }, 120) })
+    input.addEventListener('keydown', function (e) { if (e.key === 'Escape') box.style.display = 'none' })
+  })()
+  </script>
 </body>
 </html>`
 }

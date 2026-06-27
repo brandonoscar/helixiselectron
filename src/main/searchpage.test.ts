@@ -26,6 +26,27 @@ describe('searchResultsHTML', () => {
     expect(html).toContain('Zillow is a real-estate marketplace.')
   })
 
+  it('shows a favicon, a result count, and links the logo home', () => {
+    const html = searchResultsHTML(base, 'helixis://search')
+    expect(html).toContain('icons.duckduckgo.com/ip3/zillow.com.ico') // favicon
+    expect(html).toContain('1 result for') // singular count for one result
+    expect(html).toContain('href="helixis://newtab"') // clickable logo → home
+  })
+
+  it('pluralizes the result count', () => {
+    const two = {
+      ...base,
+      results: [base.results[0], { title: 'B', url: 'https://b.com', snippet: '' }]
+    }
+    expect(searchResultsHTML(two, 'helixis://search')).toContain('2 results for')
+  })
+
+  it('includes the recent-searches behavior', () => {
+    const html = searchResultsHTML(base, 'helixis://search')
+    expect(html).toContain("'helixis:recent'") // localStorage-backed recents
+    expect(html).toContain('id="recent"')
+  })
+
   it('escapes web-sourced text to prevent markup injection', () => {
     const evil: SearchPageData = {
       query: '<img src=x>',
