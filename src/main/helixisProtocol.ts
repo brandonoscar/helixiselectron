@@ -2,13 +2,49 @@ import { type Session } from 'electron'
 import { HELIXIS_SCHEME } from '../shared/layout'
 import { newtabHTML } from './newtab'
 import { errorPageHTML } from './errorpage'
-import { searchUrl } from './settings'
+import { searchResultsHTML, type SearchPageData } from './searchpage'
+import { HELIXIS_SEARCH_URL, searchApiBase, searchUrl } from './settings'
 
-/** Serve Helixis-branded pages (new-tab and error pages) over helixis://. */
-export function handleHelixisRequest(request: Request): Response {
+const SEARCH_FETCH_TIMEOUT_MS = 8000
+
+/** Fetch results for the branded search page from the Helixis backend.
+ *  Runs in the MAIN process (no CORS, no API key in the renderer). Any
+ *  failure resolves to the branded "search unavailable" page rather than a
+ *  raw protocol error, so the browser never shows a broken view. */
+async function renderSearch(query: string): Promise<Response> {
+  const empty: SearchPageData = { query, results: [], warnings: [] }
+  if (!query) return html(searchResultsHTML(empty, HELIXIS_SEARCH_URL))
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), SEARCH_FETCH_TIMEOUT_MS)
+  try {
+    const endpoint = `${searchApiBase()}/api/v1/search?q=${encodeURIComponent(query)}&max_results=8`
+    const res = await fetch(endpoint, { signal: controller.signal })
+    if (!res.ok) return html(searchResultsHTML(empty, HELIXIS_SEARCH_URL, true))
+    const data = (await res.json()) as Partial<SearchPageData>
+    const page: SearchPageData = {
+      query: data.query || query,
+      answer: data.answer ?? null,
+      results: Array.isArray(data.results) ? data.results : [],
+      warnings: Array.isArray(data.warnings) ? data.warnings : []
+    }
+    return html(searchResultsHTML(page, HELIXIS_SEARCH_URL))
+  } catch {
+    // Network error / timeout / bad JSON → branded failure page.
+    return html(searchResultsHTML(empty, HELIXIS_SEARCH_URL, true))
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Serve Helixis-branded pages (new-tab, search, error) over helixis://. */
+export async function handleHelixisRequest(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url)
     if (url.hostname === 'newtab') return html(newtabHTML(searchUrl()))
+    if (url.hostname === 'search') {
+      return await renderSearch((url.searchParams.get('q') ?? '').trim())
+    }
     if (url.hostname === 'error') {
       return html(
         errorPageHTML(
