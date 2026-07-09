@@ -21,6 +21,10 @@ Windows, and Linux runners and publishes the installers to a **GitHub Release**
 for that tag. (You can also run the workflow manually from the Actions tab; it
 publishes to the release named after the current `package.json` version.)
 
+> The workflow fails fast if the tag number doesn't match `package.json`'s
+> `version` — so bump the version first, then tag the same number. The running
+> version is visible in-app under **Help → About Helixis**.
+
 When it finishes, the Release page has:
 
 | OS | Asset | Install |

@@ -1,5 +1,6 @@
 appId: com.helixis.app
 productName: Helixis
+copyright: © Helixis
 directories:
   output: dist
   buildResources: build
@@ -30,6 +31,15 @@ win:
     - nsis
   # NSIS is unsigned too; SmartScreen shows a one-time "unknown publisher"
   # prompt (More info → Run anyway). Windows auto-update works unsigned.
+nsis:
+  # A short install wizard (not a silent one-click) so a tester can pick a
+  # per-user install and skip the admin/UAC prompt — smoother for an unsigned
+  # build than forcing a machine-wide install.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
 linux:
   target:
     - AppImage
