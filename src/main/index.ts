@@ -1,5 +1,6 @@
 import { app, protocol } from 'electron'
 import { registerIpc } from './ipc'
+import { initAutoUpdate } from './autoupdate'
 import { installAppMenu } from './menu'
 import { setBookmarksNotifier } from './bookmarks'
 import {
@@ -88,6 +89,10 @@ if (!gotInstanceLock) {
     app.on('activate', () => {
       if (windowCount() === 0) createBrowserWindow({ restore: true })
     })
+
+    // Background update check for installed builds (no-op in dev, fail-soft on
+    // unsigned macOS). Runs after the window is up so it never delays launch.
+    initAutoUpdate()
   })
 }
 
