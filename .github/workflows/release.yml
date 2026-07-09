@@ -1,0 +1,59 @@
+name: Release
+
+# Cuts an installable release. Builds the shell on all three desktop OSes and
+# publishes the installers (+ the electron-updater `latest*.yml` manifests) to a
+# GitHub Release, which is the same feed the installed app polls for updates
+# (electron-builder.yml `publish` + src/main/autoupdate.ts).
+#
+# How to cut a release: bump `version` in package.json, commit, then push a
+# matching tag — e.g. `v0.1.1`:
+#     git tag v0.1.1 && git push origin v0.1.1
+# The tag push triggers this workflow. (workflow_dispatch also works for a
+# manual run; it publishes to the release named after package.json's version.)
+#
+# Builds are UNSIGNED (no Apple/Windows certs yet) — see electron-builder.yml.
+# CSC_IDENTITY_AUTO_DISCOVERY=false stops electron-builder from trying to sign
+# on the macOS runner (which would fail the job with no cert present).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  # electron-builder creates the GitHub Release and uploads assets via GH_TOKEN.
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build renderer/preload/main
+        run: npm run build
+
+      - name: Package + publish installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Never attempt macOS code-signing/notarization on CI (unsigned builds).
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx --no-install electron-builder --publish always

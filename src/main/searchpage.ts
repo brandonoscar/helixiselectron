@@ -39,11 +39,30 @@ function hostOf(url: string): string {
   }
 }
 
+/** A self-contained favicon chip for a result: the host's first letter on a
+ *  colour derived deterministically from the hostname. Keeps this page fully
+ *  self-contained (no external favicon fetch — which would leak every result
+ *  domain to a third party and break the "no external assets" design), while
+ *  still giving each link a stable, recognisable mark instead of an empty slot.
+ *  The hue is a cheap hash of the host, so the same site always gets the same
+ *  colour. */
+function faviconChip(url: string): string {
+  const host = hostOf(url)
+  const letter = esc((host.replace(/^[^a-z0-9]+/i, '')[0] || '?').toUpperCase())
+  let hash = 0
+  for (let i = 0; i < host.length; i++) hash = (hash * 31 + host.charCodeAt(i)) >>> 0
+  const hue = hash % 360
+  return `<span class="favicon" style="background:hsl(${hue} 42% 44%)" aria-hidden="true">${letter}</span>`
+}
+
 function resultRow(r: SearchResultItem): string {
   const safeUrl = esc(r.url)
   return `
     <a class="result" href="${safeUrl}">
-      <div class="result-host">${esc(hostOf(r.url))}</div>
+      <div class="result-cite">
+        ${faviconChip(r.url)}
+        <span class="result-host">${esc(hostOf(r.url))}</span>
+      </div>
       <div class="result-title">${esc(r.title || r.url)}</div>
       ${r.snippet ? `<div class="result-snippet">${esc(r.snippet)}</div>` : ''}
     </a>`
@@ -139,7 +158,13 @@ export function searchResultsHTML(
     color: #5b8cff; margin-bottom: 6px;
   }
   .result { display: block; text-decoration: none; color: inherit; margin-bottom: 24px; }
-  .result-host { font-size: 12.5px; color: #8b93a3; margin-bottom: 2px; }
+  .result-cite { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .favicon {
+    width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff; line-height: 1;
+  }
+  .result-host { font-size: 12.5px; color: #8b93a3; }
   .result-title { font-size: 18px; color: #8ab4ff; line-height: 1.3; }
   .result:hover .result-title { text-decoration: underline; }
   .result-snippet { font-size: 13.5px; color: #b8bfcc; line-height: 1.5; margin-top: 4px; }

@@ -26,6 +26,16 @@ describe('searchResultsHTML', () => {
     expect(html).toContain('Zillow is a real-estate marketplace.')
   })
 
+  it('renders a self-contained favicon chip per result (no external asset)', () => {
+    const html = searchResultsHTML(base, 'helixis://search')
+    // A colour chip with the host's initial — derived locally, so no external
+    // favicon URL is ever fetched from this page.
+    expect(html).toContain('class="favicon"')
+    expect(html).toContain('>Z</span>') // zillow.com → "Z"
+    expect(html).not.toContain('google.com/s2/favicons')
+    expect(html).not.toContain('icons.duckduckgo.com')
+  })
+
   it('escapes web-sourced text to prevent markup injection', () => {
     const evil: SearchPageData = {
       query: '<img src=x>',

@@ -6,13 +6,30 @@ directories:
 files:
   - out/**/*
   - package.json
+# Auto-update feed. electron-builder writes an ``app-update.yml`` into the
+# packaged app pointing here, and electron-updater (src/main/autoupdate.ts)
+# polls this repo's GitHub Releases for a newer version. The release workflow
+# publishes installers + the ``latest*.yml`` manifests to a Release on this
+# same repo, closing the loop.
+publish:
+  provider: github
+  owner: brandonoscar
+  repo: helixiselectron
 mac:
   category: public.app-category.productivity
   target:
     - dmg
+  # UNSIGNED tester builds (no Apple Developer cert yet). Setting identity null
+  # tells electron-builder not to attempt signing/notarization, so the CI build
+  # succeeds; testers approve the app once via right-click → Open. Add a cert +
+  # notarization later without touching anything else. macOS auto-update needs
+  # a signed build, so mac testers grab each new .dmg by hand until then.
+  identity: null
 win:
   target:
     - nsis
+  # NSIS is unsigned too; SmartScreen shows a one-time "unknown publisher"
+  # prompt (More info → Run anyway). Windows auto-update works unsigned.
 linux:
   target:
     - AppImage
