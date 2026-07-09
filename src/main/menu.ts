@@ -1,4 +1,4 @@
-import { app, Menu, shell, type MenuItemConstructorOptions } from 'electron'
+import { app, dialog, Menu, shell, type MenuItemConstructorOptions } from 'electron'
 import type { TabManager } from './TabManager'
 
 export interface MenuActions {
@@ -196,7 +196,23 @@ export function installAppMenu(actions: MenuActions): void {
       role: 'help',
       submenu: [
         {
+          // On macOS the app menu already has a native About (role: 'about',
+          // fed by setAboutPanelOptions). This Help entry is the cross-platform
+          // one — a small dialog that surfaces the running version, which is
+          // exactly what a tester reporting a bug needs to read off.
           label: 'About Helixis',
+          click: () => {
+            void dialog.showMessageBox({
+              type: 'info',
+              title: 'About Helixis',
+              message: 'Helixis',
+              detail: `Version ${app.getVersion()}\n© Helixis`,
+              buttons: ['OK']
+            })
+          }
+        },
+        {
+          label: 'View on GitHub',
           click: () =>
             shell.openExternal('https://github.com/brandonoscar/helixiselectron')
         }

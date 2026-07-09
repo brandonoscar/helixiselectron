@@ -75,6 +75,16 @@ if (!gotInstanceLock) {
   })
 
   app.whenReady().then(() => {
+    // Feeds the macOS native About panel (Menu → About Helixis) + the
+    // Help → About dialog with the running version/copyright. Version is the
+    // single source of truth from package.json via app.getVersion().
+    app.setAboutPanelOptions({
+      applicationName: 'Helixis',
+      applicationVersion: app.getVersion(),
+      version: app.getVersion(),
+      copyright: '© Helixis'
+    })
+
     registerIpc(cdpPort)
     setBookmarksNotifier((items) => broadcast('shell:bookmarks', items))
     installAppMenu({
