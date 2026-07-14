@@ -16,6 +16,13 @@ publish:
   provider: github
   owner: brandonoscar
   repo: helixiselectron
+  # Publish a FULL release, not electron-builder's default draft. GitHub's
+  # ``releases/latest`` API (which the web app's download gate reads, and
+  # electron-updater polls) excludes drafts AND prereleases — so a draft would
+  # leave the "Download" button stuck on "coming soon" until someone manually
+  # clicked Publish. ``release`` makes the tag push publish a live release the
+  # gate picks up immediately.
+  releaseType: release
 mac:
   category: public.app-category.productivity
   target:
