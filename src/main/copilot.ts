@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { WebContentsView, shell, type BaseWindow, type Session } from 'electron'
 import { CHROME_HEIGHT, COPILOT_WIDTH } from '../shared/layout'
+import { isSafeExternalUrl } from './security'
 
 /** The chat surface the copilot panel hosts — the deployed AgenticHelixis
  *  frontend. Override with HELIXIS_COPILOT_URL (e.g. http://localhost:5173
@@ -8,6 +9,17 @@ import { CHROME_HEIGHT, COPILOT_WIDTH } from '../shared/layout'
 const DEFAULT_COPILOT_URL = 'https://agentichelixis.vercel.app'
 function copilotUrl(): string {
   return process.env.HELIXIS_COPILOT_URL || DEFAULT_COPILOT_URL
+}
+
+/** The copilot's origin — the ONE remote origin the IPC sender guard grants
+ *  page-context access to (see ipc.ts). Falls back to the default origin if
+ *  the override is malformed, so a typo'd env var can't widen the guard. */
+export function copilotOrigin(): string {
+  try {
+    return new URL(copilotUrl()).origin
+  } catch {
+    return new URL(DEFAULT_COPILOT_URL).origin
+  }
 }
 
 /**
@@ -61,8 +73,11 @@ export class CopilotPanel {
     })
     // Keep the panel single-page: external links / OAuth popups go to the
     // system browser rather than spawning windows inside the panel.
+    // Scheme-validated (2026-07 audit): the panel hosts a REMOTE page, so a
+    // compromised/injected page could window.open any URI — only http(s)/
+    // mailto ever reach the OS; everything else is dropped.
     this.view.webContents.setWindowOpenHandler(({ url }) => {
-      void shell.openExternal(url)
+      if (isSafeExternalUrl(url)) void shell.openExternal(url)
       return { action: 'deny' }
     })
     this.window.contentView.addChildView(this.view)
