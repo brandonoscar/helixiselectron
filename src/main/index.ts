@@ -1,5 +1,6 @@
 import { app, protocol } from 'electron'
 import { registerIpc } from './ipc'
+import { cdpPortFor } from './security'
 import { initAutoUpdate } from './autoupdate'
 import { installAppMenu } from './menu'
 import { setBookmarksNotifier } from './bookmarks'
@@ -23,21 +24,15 @@ protocol.registerSchemesAsPrivileged([
 
 // --- Chrome DevTools Protocol -------------------------------------------------
 // Expose CDP so an execution layer (Playwright via chromium.connectOverCDP) can
-// attach to this exact headed browser process.
-const cdpPort = resolveCdpPort()
+// attach to this exact headed browser process — DEV ONLY. Packaged builds are
+// unconditionally CDP-off (2026-07 audit: the env check used to precede the
+// isPackaged guard, so HELIXIS_CDP_PORT could re-enable remote debugging —
+// with remote-allow-origins=* — on a shipped binary). Local-browser driving
+// is gated on ADR 0004, not an env var; policy in security.cdpPortFor.
+const cdpPort = cdpPortFor(process.env, app.isPackaged)
 if (cdpPort !== null) {
   app.commandLine.appendSwitch('remote-debugging-port', String(cdpPort))
   app.commandLine.appendSwitch('remote-allow-origins', '*')
-}
-
-function resolveCdpPort(): number | null {
-  if (process.env.HELIXIS_CDP === '0') return null
-  const fromEnv = process.env.HELIXIS_CDP_PORT
-  if (fromEnv) {
-    const n = Number(fromEnv)
-    return Number.isInteger(n) && n > 0 ? n : null
-  }
-  return app.isPackaged ? null : 9222
 }
 
 /** Pull the first http(s) URL out of argv (used when the OS launches us to open

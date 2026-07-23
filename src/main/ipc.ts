@@ -5,6 +5,8 @@ import { getSettings, setSettings, SEARCH_ENGINES } from './settings'
 import { query as queryHistory, clearHistory } from './history'
 import * as bookmarks from './bookmarks'
 import { browserSession } from './sessions'
+import { classifySenderUrl, type SenderKind } from './security'
+import { copilotOrigin } from './copilot'
 import type { AppInfo, CreateTabOptions, FindOptions, Settings } from '../shared/types'
 
 /** Resolve the TabManager / DownloadManager for the window that sent the IPC. */
@@ -15,10 +17,44 @@ function downloadsFor(e: IpcMainInvokeEvent) {
   return controllerForSender(e.sender)?.downloads ?? null
 }
 
-export function registerIpc(cdpPort: number | null): void {
-  ipcMain.handle('shell:getState', (e) => tabsFor(e)?.getState() ?? { tabs: [], activeTabId: null })
+/**
+ * Sender-guarded ipcMain.handle (2026-07 security audit). The copilot panel
+ * hosts a REMOTE origin with the same preload as the chrome, so every
+ * channel must declare who may call it: `['chrome']` for browser controls
+ * and data-destructive actions, `['chrome', 'copilot']` only for the
+ * channels the copilot's feature actually needs. Untrusted / unexpected
+ * senders get null and a warning — never an execution.
+ *
+ * ALL registrations in this file must go through this wrapper; the vitest
+ * tripwire (security.test.ts) fails on any bare `ipcMain.handle` here.
+ */
+function handle(
+  channel: string,
+  allowed: SenderKind[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any — each call
+  // site keeps its own precise handler signature; the wrapper only forwards.
+  handler: (e: IpcMainInvokeEvent, ...args: any[]) => unknown
+): void {
+  ipcMain.handle(channel, (e: IpcMainInvokeEvent, ...args: unknown[]) => {
+    const kind = classifySenderUrl(e.sender.getURL(), {
+      rendererUrl: process.env.ELECTRON_RENDERER_URL || null,
+      copilotOrigin: copilotOrigin()
+    })
+    if (!allowed.includes(kind)) {
+      console.warn(`ipc: blocked '${channel}' from ${kind} sender ${e.sender.getURL()}`)
+      return null
+    }
+    return handler(e, ...args)
+  })
+}
 
-  ipcMain.handle('app:info', (): AppInfo => ({
+const CHROME: SenderKind[] = ['chrome']
+const CHROME_OR_COPILOT: SenderKind[] = ['chrome', 'copilot']
+
+export function registerIpc(cdpPort: number | null): void {
+  handle('shell:getState', CHROME, (e) => tabsFor(e)?.getState() ?? { tabs: [], activeTabId: null })
+
+  handle('app:info', CHROME, (): AppInfo => ({
     version: app.getVersion(),
     electron: process.versions.electron,
     chrome: process.versions.chrome,
@@ -26,65 +62,65 @@ export function registerIpc(cdpPort: number | null): void {
     cdpPort
   }))
 
-  ipcMain.handle('tabs:create', (e, opts: CreateTabOptions) =>
+  handle('tabs:create', CHROME, (e, opts: CreateTabOptions) =>
     tabsFor(e)?.createTab(opts.url, opts.activate ?? true)
   )
-  ipcMain.handle('tabs:close', (e, tabId: string) => tabsFor(e)?.closeTab(tabId))
-  ipcMain.handle('tabs:activate', (e, tabId: string) => tabsFor(e)?.activateTab(tabId))
-  ipcMain.handle('tabs:navigate', (e, p: { id: string; url: string }) =>
+  handle('tabs:close', CHROME, (e, tabId: string) => tabsFor(e)?.closeTab(tabId))
+  handle('tabs:activate', CHROME, (e, tabId: string) => tabsFor(e)?.activateTab(tabId))
+  handle('tabs:navigate', CHROME, (e, p: { id: string; url: string }) =>
     tabsFor(e)?.navigate(p.id, p.url)
   )
-  ipcMain.handle('tabs:goBack', (e, tabId: string) => tabsFor(e)?.goBack(tabId))
-  ipcMain.handle('tabs:goForward', (e, tabId: string) => tabsFor(e)?.goForward(tabId))
-  ipcMain.handle('tabs:reload', (e, tabId: string) => tabsFor(e)?.reload(tabId))
-  ipcMain.handle('tabs:find', (e, p: { text: string; opts?: FindOptions }) =>
+  handle('tabs:goBack', CHROME, (e, tabId: string) => tabsFor(e)?.goBack(tabId))
+  handle('tabs:goForward', CHROME, (e, tabId: string) => tabsFor(e)?.goForward(tabId))
+  handle('tabs:reload', CHROME, (e, tabId: string) => tabsFor(e)?.reload(tabId))
+  handle('tabs:find', CHROME, (e, p: { text: string; opts?: FindOptions }) =>
     tabsFor(e)?.find(p.text, p.opts)
   )
-  ipcMain.handle('tabs:stopFind', (e) => tabsFor(e)?.stopFind())
+  handle('tabs:stopFind', CHROME, (e) => tabsFor(e)?.stopFind())
 
-  ipcMain.handle('copilot:toggle', (e) => controllerForSender(e.sender)?.toggleCopilot())
+  handle('copilot:toggle', CHROME, (e) => controllerForSender(e.sender)?.toggleCopilot())
 
   // Clean main-text of the focused window's active tab (Mozilla Readability),
   // for the copilot's page context. Uses the focused window (the copilot panel
   // is a different WebContents than the chrome, so we don't match on sender).
-  ipcMain.handle('page:context', () => {
+  handle('page:context', CHROME_OR_COPILOT, () => {
     const wc = focusedController()?.tabManager.activeWebContents()
     return wc ? extractReadable(wc) : null
   })
 
-  ipcMain.handle('downloads:list', (e) => downloadsFor(e)?.list() ?? [])
-  ipcMain.handle('downloads:open', (e, id: string) => downloadsFor(e)?.open(id))
-  ipcMain.handle('downloads:showInFolder', (e, id: string) => downloadsFor(e)?.showInFolder(id))
-  ipcMain.handle('downloads:cancel', (e, id: string) => downloadsFor(e)?.cancel(id))
-  ipcMain.handle('downloads:clear', (e) => downloadsFor(e)?.clear())
+  handle('downloads:list', CHROME, (e) => downloadsFor(e)?.list() ?? [])
+  handle('downloads:open', CHROME, (e, id: string) => downloadsFor(e)?.open(id))
+  handle('downloads:showInFolder', CHROME, (e, id: string) => downloadsFor(e)?.showInFolder(id))
+  handle('downloads:cancel', CHROME, (e, id: string) => downloadsFor(e)?.cancel(id))
+  handle('downloads:clear', CHROME, (e) => downloadsFor(e)?.clear())
 
-  ipcMain.handle('settings:get', () => getSettings())
-  ipcMain.handle('settings:set', (_e, patch: Partial<Settings>) => setSettings(patch))
-  ipcMain.handle('settings:engines', () => SEARCH_ENGINES)
-  ipcMain.handle('settings:clearData', async () => {
+  handle('settings:get', CHROME, () => getSettings())
+  handle('settings:set', CHROME, (_e, patch: Partial<Settings>) => setSettings(patch))
+  handle('settings:engines', CHROME, () => SEARCH_ENGINES)
+  handle('settings:clearData', CHROME, async () => {
     const ses = browserSession()
     await ses.clearStorageData()
     await ses.clearCache()
     clearHistory()
   })
-  ipcMain.handle('settings:isDefaultBrowser', () => app.isDefaultProtocolClient('http'))
-  ipcMain.handle('settings:makeDefaultBrowser', () => {
+  handle('settings:isDefaultBrowser', CHROME, () => app.isDefaultProtocolClient('http'))
+  handle('settings:makeDefaultBrowser', CHROME, () => {
     app.setAsDefaultProtocolClient('http')
     app.setAsDefaultProtocolClient('https')
     return app.isDefaultProtocolClient('http')
   })
 
-  ipcMain.handle('history:query', (_e, text: string) => queryHistory(text))
-  ipcMain.handle('history:clear', () => clearHistory())
+  handle('history:query', CHROME, (_e, text: string) => queryHistory(text))
+  handle('history:clear', CHROME, () => clearHistory())
 
-  ipcMain.handle('bookmarks:list', () => bookmarks.list())
-  ipcMain.handle('bookmarks:toggle', (_e, p: { url: string; title: string }) =>
+  handle('bookmarks:list', CHROME, () => bookmarks.list())
+  handle('bookmarks:toggle', CHROME, (_e, p: { url: string; title: string }) =>
     bookmarks.toggle(p.url, p.title)
   )
-  ipcMain.handle('bookmarks:remove', (_e, url: string) => {
+  handle('bookmarks:remove', CHROME, (_e, url: string) => {
     bookmarks.remove(url)
     return bookmarks.list()
   })
 
-  ipcMain.handle('overlay:set', (e, open: boolean) => tabsFor(e)?.setChromeOverlay(open))
+  handle('overlay:set', CHROME, (e, open: boolean) => tabsFor(e)?.setChromeOverlay(open))
 }
