@@ -6,7 +6,7 @@ import { DownloadsPanel } from './DownloadsPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { Bookmarks } from './Bookmarks'
 
-// The deployed Helixis app (Chat / Inbox / Properties …). The logo/home button
+// The deployed Occupella app (Chat / Inbox / Properties …). The logo/home button
 // opens it as a full browser tab — the hybrid "jump to the full app" entry
 // point. Mirrors copilot.ts's default URL; the env override
 // (HELIXIS_COPILOT_URL) can be threaded through via IPC later.
@@ -154,7 +154,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
       </div>
 
       <div className="toolbar">
-        <button className="logo-btn" title="Helixis — open the app" onClick={openApp}>
+        <button className="logo-btn" title="Occupella — open the app" onClick={openApp}>
           ◐
         </button>
         <button
@@ -217,7 +217,7 @@ export function BrowserChrome({ state }: { state: ShellState }): JSX.Element {
         <DownloadsPanel />
         <button
           className="nav-btn assistant-btn"
-          title="Helixis Copilot (Cmd/Ctrl+E)"
+          title="Occupella Copilot (Cmd/Ctrl+E)"
           onClick={() => window.helixis.copilot.toggle()}
         >
           ✦

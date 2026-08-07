@@ -1,6 +1,6 @@
 appId: com.helixis.app
-productName: Helixis
-copyright: © Helixis
+productName: Occupella
+copyright: © Helixis Systems, Inc.
 directories:
   output: dist
   buildResources: build

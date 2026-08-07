@@ -70,14 +70,14 @@ if (!gotInstanceLock) {
   })
 
   app.whenReady().then(() => {
-    // Feeds the macOS native About panel (Menu → About Helixis) + the
+    // Feeds the macOS native About panel (Menu → About Occupella) + the
     // Help → About dialog with the running version/copyright. Version is the
     // single source of truth from package.json via app.getVersion().
     app.setAboutPanelOptions({
-      applicationName: 'Helixis',
+      applicationName: 'Occupella',
       applicationVersion: app.getVersion(),
       version: app.getVersion(),
-      copyright: '© Helixis'
+      copyright: '© Helixis Systems, Inc.'
     })
 
     registerIpc(cdpPort)

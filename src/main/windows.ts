@@ -63,7 +63,7 @@ export class WindowController {
       y: ws.y,
       minWidth: 900,
       minHeight: 600,
-      title: this.incognito ? 'Helixis (Private)' : 'Helixis',
+      title: this.incognito ? 'Occupella (Private)' : 'Occupella',
       backgroundColor: this.incognito ? '#1a1430' : '#0f1115'
     })
     if (!this.incognito && ws.maximized) this.window.maximize()
