@@ -71,13 +71,13 @@ if (!gotInstanceLock) {
 
   app.whenReady().then(() => {
     // Feeds the macOS native About panel (Menu → About Occupella) + the
-    // Help → About dialog with the running version/copyright. Version is the
-    // single source of truth from package.json via app.getVersion().
+    // Help → About dialog with the running version. Version is the single
+    // source of truth from package.json via app.getVersion(). Copyright is
+    // omitted until the legal entity is finalized (ToS/legal pass).
     app.setAboutPanelOptions({
       applicationName: 'Occupella',
       applicationVersion: app.getVersion(),
-      version: app.getVersion(),
-      copyright: '© Helixis Systems, Inc.'
+      version: app.getVersion()
     })
 
     registerIpc(cdpPort)

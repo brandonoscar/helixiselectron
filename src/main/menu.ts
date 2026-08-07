@@ -206,7 +206,7 @@ export function installAppMenu(actions: MenuActions): void {
               type: 'info',
               title: 'About Occupella',
               message: 'Occupella',
-              detail: `Version ${app.getVersion()}\n© Helixis Systems, Inc.`,
+              detail: `Version ${app.getVersion()}`,
               buttons: ['OK']
             })
           }
