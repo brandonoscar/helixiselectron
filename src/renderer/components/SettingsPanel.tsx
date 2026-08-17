@@ -115,13 +115,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }): JSX.Element
             <section className="setting">
               <label>Default browser</label>
               {isDefault ? (
-                <span className="settings-note">Helixis is your default browser.</span>
+                <span className="settings-note">Occupella is your default browser.</span>
               ) : (
                 <button
                   className="settings-btn"
                   onClick={async () => setIsDefault(await window.helixis.settings.makeDefaultBrowser())}
                 >
-                  Make Helixis the default browser
+                  Make Occupella the default browser
                 </button>
               )}
             </section>

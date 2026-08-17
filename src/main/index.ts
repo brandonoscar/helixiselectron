@@ -74,10 +74,10 @@ if (!gotInstanceLock) {
     // Help → About dialog with the running version/copyright. Version is the
     // single source of truth from package.json via app.getVersion().
     app.setAboutPanelOptions({
-      applicationName: 'Helixis',
+      applicationName: 'Occupella',
       applicationVersion: app.getVersion(),
       version: app.getVersion(),
-      copyright: '© Helixis'
+      copyright: '© Occupella'
     })
 
     registerIpc(cdpPort)

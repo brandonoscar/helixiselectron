@@ -9,7 +9,7 @@ export function newtabHTML(searchUrl: string): string {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Helixis</title>
+<title>Occupella</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -43,12 +43,12 @@ export function newtabHTML(searchUrl: string): string {
 <body>
   <div class="brand">
     <span class="mark">◐</span>
-    <span class="name">Helixis</span>
+    <span class="name">Occupella</span>
   </div>
   <form action="${searchUrl}" method="GET" autocomplete="off">
     <input name="q" placeholder="Search the web" autofocus aria-label="Search" />
   </form>
-  <div class="tagline">Search the web with Helixis</div>
+  <div class="tagline">Search the web with Occupella</div>
 </body>
 </html>`
 }

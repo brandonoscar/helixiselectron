@@ -1,4 +1,4 @@
-# Helixis
+# Occupella
 
 A minimal tabbed web browser built on Electron (`BaseWindow` + `WebContentsView`).
 No browser fork — a thin shell around Chromium via Electron.
@@ -15,7 +15,7 @@ BaseWindow
   deprecated `BrowserView` (Electron 30+). The React "chrome" view renders the
   tab strip and toolbar and leaves a hole; the main process layers the active
   tab's native view over that hole and keeps bounds in sync on resize.
-- **Helixis-branded new-tab page** — served from a custom `helixis://newtab`
+- **Occupella-branded new-tab page** — served from a custom `helixis://newtab`
   scheme (`src/main/newtab.ts`), with a search box. The default search engine is
   one constant, `SEARCH_URL` in `src/shared/layout.ts`. Protocol handlers are
   registered per-session, so the handler is bound to the tabs' partition.
