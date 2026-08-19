@@ -1,4 +1,4 @@
-# Distributing Helixis Desktop (unsigned tester builds)
+# Distributing Occupella Desktop (unsigned tester builds)
 
 How to cut a build and hand it to testers, and what testers do to install it.
 These are **unsigned** builds — no Apple / Windows code-signing certificates yet
@@ -23,30 +23,30 @@ publishes to the release named after the current `package.json` version.)
 
 > The workflow fails fast if the tag number doesn't match `package.json`'s
 > `version` — so bump the version first, then tag the same number. The running
-> version is visible in-app under **Help → About Helixis**.
+> version is visible in-app under **Help → About Occupella**.
 
 When it finishes, the Release page has:
 
 | OS | Asset | Install |
 |----|-------|---------|
-| macOS | `Helixis-<ver>.dmg` (+ `-arm64` on Apple Silicon) | open the dmg, drag Helixis to Applications |
-| Windows | `Helixis Setup <ver>.exe` | run it |
-| Linux | `Helixis-<ver>.AppImage` | `chmod +x` then run |
+| macOS | `Occupella-<ver>.dmg` (+ `-arm64` on Apple Silicon) | open the dmg, drag Occupella to Applications |
+| Windows | `Occupella Setup <ver>.exe` | run it |
+| Linux | `Occupella-<ver>.AppImage` | `chmod +x` then run |
 
 The Release also carries `latest.yml` / `latest-mac.yml` / `latest-linux.yml` —
 these are the auto-update manifests; don't delete them.
 
 ## Install (testers)
 
-**macOS** — open the `.dmg`, drag **Helixis** into Applications. First launch:
+**macOS** — open the `.dmg`, drag **Occupella** into Applications. First launch:
 right-click the app → **Open** → **Open** (this approves the unsigned app once;
 double-clicking would just show "cannot be opened"). After that it opens normally.
 
-**Windows** — run `Helixis Setup <ver>.exe`. SmartScreen shows *"Windows
+**Windows** — run `Occupella Setup <ver>.exe`. SmartScreen shows *"Windows
 protected your PC"* → click **More info** → **Run anyway**. Installs like any app.
 
 **Linux** — download the `.AppImage`, make it executable
-(`chmod +x Helixis-*.AppImage`), and run it. No install step.
+(`chmod +x Occupella-*.AppImage`), and run it. No install step.
 
 ## Updates
 

@@ -104,7 +104,7 @@ export function installAppMenu(actions: MenuActions): void {
       label: 'View',
       submenu: [
         {
-          label: 'Toggle Helixis Copilot',
+          label: 'Toggle Occupella Copilot',
           accelerator: 'CmdOrCtrl+E',
           click: () => actions.toggleCopilot()
         },
@@ -200,13 +200,13 @@ export function installAppMenu(actions: MenuActions): void {
           // fed by setAboutPanelOptions). This Help entry is the cross-platform
           // one — a small dialog that surfaces the running version, which is
           // exactly what a tester reporting a bug needs to read off.
-          label: 'About Helixis',
+          label: 'About Occupella',
           click: () => {
             void dialog.showMessageBox({
               type: 'info',
-              title: 'About Helixis',
-              message: 'Helixis',
-              detail: `Version ${app.getVersion()}\n© Helixis`,
+              title: 'About Occupella',
+              message: 'Occupella',
+              detail: `Version ${app.getVersion()}\n© Occupella`,
               buttons: ['OK']
             })
           }

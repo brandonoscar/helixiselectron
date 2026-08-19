@@ -66,25 +66,25 @@ describe('BrowserChrome toolbar buttons', () => {
   })
   afterEach(() => cleanup())
 
-  it('logo/home button opens the full Helixis app in a new tab', async () => {
+  it('logo/home button opens the full Occupella app in a new tab', async () => {
     render(<BrowserChrome state={EMPTY_STATE} />)
     // findBy settles the always-mounted panels' async list() effects first.
-    fireEvent.click(await screen.findByTitle('Helixis — open the app'))
+    fireEvent.click(await screen.findByTitle('Occupella — open the app'))
     expect(window.helixis.tabs.create).toHaveBeenCalledTimes(1)
     expect(window.helixis.tabs.create).toHaveBeenCalledWith({ url: HELIXIS_APP_URL })
   })
 
   it('assistant button toggles the docked Copilot panel', async () => {
     render(<BrowserChrome state={EMPTY_STATE} />)
-    fireEvent.click(await screen.findByTitle('Helixis Copilot (Cmd/Ctrl+E)'))
+    fireEvent.click(await screen.findByTitle('Occupella Copilot (Cmd/Ctrl+E)'))
     expect(window.helixis.copilot.toggle).toHaveBeenCalledTimes(1)
   })
 
   it('assistant button does not open a tab, and the logo does not toggle the copilot', async () => {
     render(<BrowserChrome state={EMPTY_STATE} />)
-    fireEvent.click(await screen.findByTitle('Helixis Copilot (Cmd/Ctrl+E)'))
+    fireEvent.click(await screen.findByTitle('Occupella Copilot (Cmd/Ctrl+E)'))
     expect(window.helixis.tabs.create).not.toHaveBeenCalled()
-    fireEvent.click(await screen.findByTitle('Helixis — open the app'))
+    fireEvent.click(await screen.findByTitle('Occupella — open the app'))
     expect(window.helixis.copilot.toggle).toHaveBeenCalledTimes(1)
   })
 })

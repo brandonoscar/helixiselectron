@@ -89,7 +89,7 @@ export function searchResultsHTML(
   if (degraded) {
     body = `<div class="notice">
       <div class="notice-title">Search is unavailable right now</div>
-      <div class="notice-sub">Couldn't reach Helixis search. Check your connection and try again.</div>
+      <div class="notice-sub">Couldn't reach Occupella search. Check your connection and try again.</div>
     </div>`
   } else if (data.results.length === 0) {
     body = `<div class="notice">
@@ -108,7 +108,7 @@ export function searchResultsHTML(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${q ? `${q} — Helixis` : 'Helixis Search'}</title>
+<title>${q ? `${q} — Occupella` : 'Occupella Search'}</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -175,7 +175,7 @@ export function searchResultsHTML(
 </head>
 <body>
   <header>
-    <div class="brand"><span class="mark">◐</span><span class="name">Helixis</span></div>
+    <div class="brand"><span class="mark">◐</span><span class="name">Occupella</span></div>
     <form action="${esc(searchAction)}" method="GET" autocomplete="off">
       <input name="q" value="${q}" placeholder="Search the web" aria-label="Search" />
     </form>

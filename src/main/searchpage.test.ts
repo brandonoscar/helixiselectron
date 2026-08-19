@@ -11,9 +11,9 @@ const base: SearchPageData = {
 }
 
 describe('searchResultsHTML', () => {
-  it('renders the Helixis brand + a query-filled search box', () => {
+  it('renders the Occupella brand + a query-filled search box', () => {
     const html = searchResultsHTML(base, 'helixis://search')
-    expect(html).toContain('Helixis')
+    expect(html).toContain('Occupella')
     expect(html).toContain('◐')
     expect(html).toContain('value="zillow"')
     expect(html).toContain('action="helixis://search"')

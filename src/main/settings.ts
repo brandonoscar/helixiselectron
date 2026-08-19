@@ -9,7 +9,7 @@ import type { Settings, SearchEngine } from '../shared/types'
 export const HELIXIS_SEARCH_URL = `${HELIXIS_SCHEME}://search`
 
 export const SEARCH_ENGINES: SearchEngine[] = [
-  { id: 'helixis', name: 'Helixis', url: HELIXIS_SEARCH_URL },
+  { id: 'helixis', name: 'Occupella', url: HELIXIS_SEARCH_URL },
   { id: 'google', name: 'Google', url: 'https://www.google.com/search' },
   { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search' },
   { id: 'duckduckgo', name: 'DuckDuckGo', url: 'https://duckduckgo.com/' },
