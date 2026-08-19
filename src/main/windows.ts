@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { BaseWindow, WebContentsView, type Session, type WebContents } from 'electron'
 import { TabManager } from './TabManager'
-import { CopilotPanel } from './copilot'
+import { CopilotPanel, appUrl } from './copilot'
 import { COPILOT_WIDTH } from '../shared/layout'
 import { DownloadManager } from './downloads'
 import { installPermissionHandlers } from './permissions'
@@ -13,6 +13,9 @@ import { NEWTAB_URL } from '../shared/layout'
 
 const WINDOW_STATE_FILE = 'window-state.json'
 const SESSION_FILE = 'session.json'
+// Written once, on the very first window of a fresh install — gates the
+// "land on the Occupella sign-in" first-run tab in openInitialTab.
+const FIRST_RUN_FILE = 'first-run.json'
 
 interface WindowState {
   width: number
@@ -115,6 +118,16 @@ export class WindowController {
   }
 
   private openInitialTab(opts: WindowOptions): void {
+    // Very first launch after install: land on the Occupella sign-in /
+    // create-account screen before anything else (founder feedback on the
+    // v0.1.0 build). One tab, one auth surface. Every later launch uses
+    // the normal restore/home flow below.
+    if (!this.incognito && !readJSON<{ done: boolean }>(FIRST_RUN_FILE, { done: false }).done) {
+      writeJSON(FIRST_RUN_FILE, { done: true })
+      this.tabManager.createTab(appUrl())
+      if (opts.initialUrl) this.tabManager.createTab(opts.initialUrl)
+      return
+    }
     const override = process.env.HELIXIS_HOME
     let opened = false
     if (opts.restore && override) {

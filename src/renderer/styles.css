@@ -11,8 +11,9 @@
   --border: #2a2f3a;
   --text: #e6e9ef;
   --muted: #8b93a3;
-  /* Helixis iris brand accent. */
-  --accent: #826eff;
+  /* Occupella brand blue (--iris #1E73BC in the web app), lightened one
+     step so accents stay legible on the dark chrome. */
+  --accent: #3E93DC;
 }
 
 * {
