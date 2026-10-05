@@ -72,3 +72,18 @@ jobs:
           # Never attempt macOS code-signing/notarization on CI (unsigned builds).
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx --no-install electron-builder --publish always
+
+      # Read the fuses back out of every packaged binary this runner built.
+      # (CI already gates this on Linux before merge; this catches a
+      # platform-specific packaging regression on release.)
+      - name: Verify fuses in the packaged app
+        shell: bash
+        run: |
+          found=0
+          for app in dist/mac*/Occupella.app dist/win-unpacked/Occupella.exe dist/linux-unpacked/helixis; do
+            if [ -e "$app" ]; then
+              found=1
+              node scripts/check-fuses.mjs "$app"
+            fi
+          done
+          if [ "$found" = 0 ]; then echo "::error::no packaged app found under dist/"; exit 1; fi
