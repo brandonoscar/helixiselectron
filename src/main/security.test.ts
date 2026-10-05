@@ -8,37 +8,40 @@
  * dispatch-path test guards its write pipeline.
  */
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { classifySenderUrl, cdpPortFor, isSafeExternalUrl } from './security'
+import { readdirSync } from 'node:fs'
+import { callsIn, webContentsViewSandbox } from './testing/ast'
 
 const POLICY = {
-  rendererUrl: 'http://localhost:5173',
-  copilotOrigin: 'https://agentichelixis.vercel.app'
+  rendererUrl: 'http://localhost:5173'
 }
 
 describe('classifySenderUrl', () => {
-  it('recognises the packaged chrome renderer', () => {
-    expect(
-      classifySenderUrl('file:///Applications/Helixis.app/out/renderer/index.html', POLICY)
-    ).toBe('chrome')
+  it('recognises the packaged chrome renderer on app://chrome', () => {
+    expect(classifySenderUrl('app://chrome/index.html', POLICY)).toBe('chrome')
   })
 
   it('recognises the dev chrome renderer', () => {
     expect(classifySenderUrl('http://localhost:5173/index.html', POLICY)).toBe('chrome')
   })
 
-  it('grants the copilot origin copilot-tier only', () => {
-    expect(classifySenderUrl('https://agentichelixis.vercel.app/chat', POLICY)).toBe('copilot')
+  it('trusts no remote origin and not the copilot panel', () => {
+    // The old docked web app was copilot-tier; since 2026-10 nothing remote
+    // reaches the chrome's channels.
+    expect(classifySenderUrl('https://agentichelixis.vercel.app/chat', POLICY)).toBe('untrusted')
+    // The bundled copilot has its own channels (copilotIpc.ts), not these.
+    expect(classifySenderUrl('app://copilot/panel.html', POLICY)).toBe('untrusted')
   })
 
   it('treats every other origin as untrusted — including lookalikes', () => {
     expect(classifySenderUrl('https://evil.example.com/', POLICY)).toBe('untrusted')
-    expect(classifySenderUrl('https://agentichelixis.vercel.app.evil.com/', POLICY)).toBe(
-      'untrusted'
-    )
-    // A tab page can never be a trusted sender even over file://.
+    expect(classifySenderUrl('http://localhost:5173.evil.com/', POLICY)).toBe('untrusted')
+    expect(classifySenderUrl('app://chrome.evil/index.html', POLICY)).toBe('untrusted')
+    // file:// is no longer how the chrome loads, so it is never trusted.
+    expect(
+      classifySenderUrl('file:///Applications/Occupella.app/out/renderer/index.html', POLICY)
+    ).toBe('untrusted')
     expect(classifySenderUrl('file:///tmp/evil.html', POLICY)).toBe('untrusted')
   })
 
@@ -83,37 +86,57 @@ describe('cdpPortFor', () => {
   })
 })
 
-describe('source tripwires', () => {
-  const read = (name: string): string => readFileSync(join(__dirname, name), 'utf-8')
-
+describe('source tripwires (syntax tree, so comments never count)', () => {
   it('ipc.ts registers every channel through the sender guard', () => {
-    const src = read('ipc.ts')
+    const handles = callsIn('ipc.ts', 'ipcMain.handle')
     // Exactly ONE ipcMain.handle call may exist: inside the guard wrapper.
-    const calls = src.match(/ipcMain\.handle\(/g) ?? []
-    expect(calls).toHaveLength(1)
-    // The privileged channels must be chrome-only.
+    expect(handles.map((c) => c.enclosingFunction)).toEqual(['handle'])
+    // The data-destructive channels go through that guard.
+    const guarded = callsIn('ipc.ts', 'handle').map((c) => c.firstArg)
     for (const channel of [
       'settings:clearData',
       'settings:makeDefaultBrowser',
       'history:clear',
       'bookmarks:remove'
     ]) {
-      expect(src).toMatch(new RegExp(`handle\\('${channel}', CHROME[,)]`))
+      expect(guarded).toContain(channel)
     }
-    // The copilot's ONLY channel.
-    expect(src).toContain("handle('page:context', CHROME_OR_COPILOT")
+    // The remote-copilot channel is gone.
+    expect(guarded).not.toContain('page:context')
+  })
+
+  it('copilotIpc.ts registers every channel through the copilot guard', () => {
+    const handles = callsIn('copilotIpc.ts', 'ipcMain.handle')
+    expect(handles.map((c) => c.enclosingFunction)).toEqual(['handleCopilot'])
+    expect(callsIn('copilotIpc.ts', 'handleCopilot').map((c) => c.firstArg).sort()).toEqual([
+      'copilot:http:abort',
+      'copilot:http:start',
+      'copilot:notifyApproval',
+      'copilot:pageContext',
+      'copilot:setPendingApprovals'
+    ])
   })
 
   it('copilot.ts scheme-validates every openExternal', () => {
-    const src = read('copilot.ts')
-    expect(src).toContain('isSafeExternalUrl(url)')
-    // No unconditional openExternal call anywhere in the file.
-    expect(src).not.toMatch(/\{\s*void shell\.openExternal\(url\)/)
+    const calls = callsIn('copilot.ts', 'shell.openExternal')
+    expect(calls.length).toBeGreaterThan(0)
+    for (const c of calls) expect(c.guardedBy).toContain('isSafeExternalUrl(url)')
+  })
+
+  it('every WebContentsView is created with sandbox: true', () => {
+    let views = 0
+    for (const file of readdirSync(__dirname).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))) {
+      for (const sandbox of webContentsViewSandbox(file)) {
+        views++
+        expect(sandbox, `${file}: a WebContentsView without sandbox: true`).toBe(true)
+      }
+    }
+    // chrome view, tab views, copilot view
+    expect(views).toBeGreaterThanOrEqual(3)
   })
 
   it('index.ts routes CDP policy through cdpPortFor', () => {
-    const src = read('index.ts')
-    expect(src).toContain('cdpPortFor(process.env, app.isPackaged)')
-    expect(src).not.toContain('function resolveCdpPort')
+    const calls = callsIn('index.ts', 'cdpPortFor')
+    expect(calls.map((c) => c.text)).toEqual(['cdpPortFor(process.env, app.isPackaged)'])
   })
 })

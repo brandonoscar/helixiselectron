@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { BaseWindow, WebContentsView, type Session, type WebContents } from 'electron'
+import { BaseWindow, WebContentsView, screen, type Session, type WebContents } from 'electron'
 import { TabManager } from './TabManager'
 import { CopilotPanel } from './copilot'
 import { COPILOT_WIDTH } from '../shared/layout'
@@ -10,6 +10,12 @@ import { browserSession, privateSession } from './sessions'
 import { readJSON, writeJSON, debounce } from './store'
 import { getSettings, homeUrl } from './settings'
 import { NEWTAB_URL } from '../shared/layout'
+import { isOnScreen } from './windowBounds'
+import { CHROME_HOST } from './security'
+import { APP_SCHEME } from './appProtocol'
+
+/** The packaged chrome UI, served by app:// from out/renderer (index.ts). */
+export const CHROME_URL = `${APP_SCHEME}://${CHROME_HOST}/index.html`
 
 const WINDOW_STATE_FILE = 'window-state.json'
 const SESSION_FILE = 'session.json'
@@ -44,7 +50,7 @@ export class WindowController {
   readonly tabManager: TabManager
   readonly downloads: DownloadManager
   readonly incognito: boolean
-  private copilot: CopilotPanel
+  readonly copilot: CopilotPanel
 
   constructor(opts: WindowOptions = {}) {
     this.incognito = Boolean(opts.incognito)
@@ -56,11 +62,20 @@ export class WindowController {
     }
 
     const ws = readJSON<WindowState>(WINDOW_STATE_FILE, { width: 1440, height: 900 })
+    // A saved position on a monitor that is no longer attached would open the
+    // window off-screen. Keep the size, let the OS place it instead.
+    const onScreen =
+      ws.x !== undefined &&
+      ws.y !== undefined &&
+      isOnScreen(
+        { x: ws.x, y: ws.y, width: ws.width, height: ws.height },
+        screen.getAllDisplays().map((d) => d.workArea)
+      )
     this.window = new BaseWindow({
       width: ws.width,
       height: ws.height,
-      x: ws.x,
-      y: ws.y,
+      x: onScreen ? ws.x : undefined,
+      y: onScreen ? ws.y : undefined,
       minWidth: 900,
       minHeight: 600,
       title: this.incognito ? 'Occupella (Private)' : 'Occupella',
@@ -86,7 +101,7 @@ export class WindowController {
     this.window.contentView.addChildView(this.chrome)
 
     this.tabManager = new TabManager(this.window, this.chrome, ses)
-    this.copilot = new CopilotPanel(this.window, ses)
+    this.copilot = new CopilotPanel(this.window, () => this.revealCopilot())
     this.downloads = new DownloadManager(ses, (items) => this.send('shell:downloads', items))
 
     // Only normal windows persist their tab session.
@@ -104,7 +119,7 @@ export class WindowController {
     if (process.env.ELECTRON_RENDERER_URL) {
       this.chrome.webContents.loadURL(process.env.ELECTRON_RENDERER_URL)
     } else {
-      this.chrome.webContents.loadFile(join(__dirname, '../renderer/index.html'))
+      this.chrome.webContents.loadURL(CHROME_URL)
     }
 
     this.chrome.webContents.once('did-finish-load', () => {
@@ -132,8 +147,19 @@ export class WindowController {
 
   /** Show/hide the docked copilot panel, resizing page content to fit. */
   toggleCopilot(): void {
-    const open = this.copilot.toggle()
+    this.setCopilotOpen(!this.copilot.isOpen())
+  }
+
+  private setCopilotOpen(open: boolean): void {
+    this.copilot.setOpen(open)
     this.tabManager.setRightInset(open ? COPILOT_WIDTH : 0)
+  }
+
+  /** Bring this window forward with the copilot open (approval notification
+   *  click). */
+  revealCopilot(): void {
+    this.focus()
+    if (!this.copilot.isOpen()) this.setCopilotOpen(true)
   }
 
   send(channel: string, payload: unknown): void {
@@ -166,6 +192,11 @@ export function createBrowserWindow(opts: WindowOptions = {}): WindowController 
 
 export function controllerForSender(sender: WebContents): WindowController | null {
   for (const c of controllers) if (c.chrome.webContents === sender) return c
+  return null
+}
+
+export function controllerForCopilot(panel: CopilotPanel): WindowController | null {
+  for (const c of controllers) if (c.copilot === panel) return c
   return null
 }
 

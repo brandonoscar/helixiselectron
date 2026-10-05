@@ -103,11 +103,6 @@ export interface HelixisApi {
     /** Show/hide the docked Helixis Copilot side panel. */
     toggle(): Promise<void>
   }
-  page: {
-    /** Clean main text of the active browser tab (Readability), or null when
-     *  there's no extractable web page. */
-    context(): Promise<PageContext | null>
-  }
   tabs: {
     create(opts: CreateTabOptions): Promise<string>
     close(tabId: string): Promise<void>
