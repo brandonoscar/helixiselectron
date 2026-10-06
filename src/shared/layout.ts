@@ -7,6 +7,10 @@ export const TOOLBAR_HEIGHT = 44
 /** Total height of the browser chrome above the page content. */
 export const CHROME_HEIGHT = TABSTRIP_HEIGHT + TOOLBAR_HEIGHT
 
+/** Application id. Must equal `appId` in electron-builder.yml: Windows keys
+ *  notifications to it (layout.test.ts pins the two together). */
+export const APP_ID = 'com.helixis.app'
+
 /** Single persistent session so logins survive restarts. */
 export const DEFAULT_PROFILE_ID = 'default'
 export const DEFAULT_PROFILE_NAME = 'Default'

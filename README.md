@@ -7,9 +7,41 @@ No browser fork — a thin shell around Chromium via Electron.
 
 ```
 BaseWindow
-├── chrome  WebContentsView  → React UI (tab strip + toolbar), spans whole window
-└── tab[]   WebContentsView  → web content, layered over the region below the chrome
+├── chrome   WebContentsView → React UI (tab strip + toolbar), app://chrome, default session
+├── tab[]    WebContentsView → web content, persist:helixis-default (or a private session)
+└── copilot  WebContentsView → Occupella Copilot panel, app://copilot, persist:occupella (lazy, Cmd/Ctrl+E)
 ```
+
+### The copilot is the Chrome extension, bundled
+
+`resources/copilot/` is the helixis-sidebar extension panel, copied unchanged
+by `node scripts/sync-copilot.mjs ../helixis-sidebar` (the commit it came from
+is in `resources/copilot/SOURCE`). Only `platform.js` is desktop-owned: it
+swaps `chrome.*` for `window.occupellaDesktop`, a four-call bridge from
+`src/preload/copilot.ts`:
+
+| Call | Main-process side |
+|---|---|
+| `http` | `copilotNet.ts`: fetch run by main, streamed back. Reaches only the backend and the Supabase auth API (the backend's CORS list doesn't name `app://copilot`). |
+| `pageContext` | `copilotIpc.ts`: Readability text of this window's active tab. Never a PMS screen (`contextPolicy.ts`) or a private window. |
+| `setPendingApprovals` / `notifyApproval` | `approvals.ts`: dock/taskbar badge, native notification while the window is in the background. Approving only happens on the card. |
+
+Change panel behaviour in helixis-sidebar, then re-sync. Never edit the copied
+files here.
+
+### Security posture
+
+- Every view: `sandbox`, `contextIsolation`, no Node (a test fails on any
+  `WebContentsView` without `sandbox: true`).
+- App UI is served over `app://` with a CSP, never `file://`.
+- IPC: chrome channels (`ipc.ts`) and copilot channels (`copilotIpc.ts`) each
+  check the sender's identity, top-level frame and URL. Tests walk both files'
+  syntax trees and fail on an unguarded `ipcMain.handle`.
+- Permissions: allow / ask / deny lists; anything unlisted is denied
+  (`permissions.ts`). App pages get no permissions beyond clipboard write.
+- Fuses (electron-builder.yml): RunAsNode, NODE_OPTIONS, `--inspect` and
+  file:// privileges off; cookie encryption and ASAR integrity on. CI reads
+  them back from a packaged build (`scripts/check-fuses.mjs`).
 
 - **`BaseWindow` + `WebContentsView`** — the modern replacement for the
   deprecated `BrowserView` (Electron 30+). The React "chrome" view renders the
@@ -35,9 +67,12 @@ src/
     index.ts        app bootstrap, BaseWindow + chrome view, opens a home tab
     TabManager.ts   WebContentsView-per-tab manager, layout, z-order
     sessions.ts     persistent session partition
-    ipc.ts          IPC handlers
-  preload/    contextBridge → window.helixis
+    ipc.ts          IPC handlers (chrome)
+    copilot.ts      the docked copilot view; copilotIpc.ts / copilotNet.ts / approvals.ts behind it
+    appProtocol.ts  app:// file server for the chrome and copilot
+  preload/    index.ts → window.helixis (chrome) · copilot.ts → window.occupellaDesktop
   renderer/   React UI (tab strip + toolbar)
+resources/copilot/  the helixis-sidebar panel, bundled (see below)
 ```
 
 ## Develop
@@ -77,3 +112,6 @@ npm run package      # build + electron-builder installers
   session), **single-instance** focus, **print / save-as-PDF**, and spellcheck.
 - `target=_blank` / `window.open` open as new tabs; Google OAuth opens in the
   system browser. Logins persist across restarts.
+- **Occupella Copilot** (Cmd/Ctrl+E): the extension's chat, approval cards,
+  reminders and page context, with a badge and notification for approvals
+  waiting on you.

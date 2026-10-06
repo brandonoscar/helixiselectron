@@ -4,12 +4,10 @@
  * The 2026-07 security audit found three exposures, all fixed here as PURE,
  * unit-tested helpers the wiring code consumes:
  *
- * 1. Every global IPC handler ignored `event.sender` — and the copilot panel
- *    loads a REMOTE origin (the deployed chat app) with the same privileged
- *    preload as the internal chrome, so the remote page could invoke
- *    settings:clearData, history:*, bookmarks:*, etc. `classifySenderUrl`
- *    splits senders into chrome / copilot / untrusted; the guard in ipc.ts
- *    grants the copilot ONLY the channels its feature needs (page context).
+ * 1. Every global IPC handler ignored `event.sender`. `classifySenderUrl`
+ *    now gates the chrome's channels (ipc.ts). Since 2026-10 the copilot is
+ *    the bundled extension panel with its own preload and its own guarded
+ *    channels (copilotIpc.ts), so no remote origin is trusted here at all.
  *
  * 2. The copilot's window-open handler forwarded ANY url to
  *    shell.openExternal — a remote-controlled URI-scheme launch.
@@ -22,28 +20,33 @@
  *    and is not re-enterable via an env var on a shipped binary.
  */
 
-export type SenderKind = 'chrome' | 'copilot' | 'untrusted'
+import { isAppUrl } from './appProtocol'
+
+export type SenderKind = 'chrome' | 'untrusted'
 
 export interface SenderPolicy {
   /** electron-vite dev server URL for the chrome renderer, if running. */
   rendererUrl: string | null
-  /** Origin of the hosted copilot web app (deployed chat surface). */
-  copilotOrigin: string
 }
 
-/** Classify an IPC sender by its document URL. Fail-closed: anything that
- *  isn't provably the internal chrome or the configured copilot origin —
- *  including malformed URLs — is untrusted. */
+/** Host of the browser chrome UI: app://chrome/index.html when packaged. */
+export const CHROME_HOST = 'chrome'
+
+/** Classify an IPC sender frame by its document URL. Fail-closed: anything
+ *  that isn't provably the internal chrome — including malformed URLs and
+ *  file:// pages — is untrusted. */
 export function classifySenderUrl(url: string | undefined, policy: SenderPolicy): SenderKind {
   if (!url) return 'untrusted'
-  // Packaged chrome renderer: the bundled file:// index.html.
-  if (url.startsWith('file://') && url.includes('/renderer/')) return 'chrome'
-  // Dev chrome renderer: the electron-vite dev server.
-  if (policy.rendererUrl && url.startsWith(policy.rendererUrl)) return 'chrome'
-  try {
-    if (new URL(url).origin === policy.copilotOrigin) return 'copilot'
-  } catch {
-    return 'untrusted'
+  // Packaged (and built) chrome renderer.
+  if (isAppUrl(url, CHROME_HOST)) return 'chrome'
+  // Dev chrome renderer: the electron-vite dev server. Compare origins, not a
+  // string prefix, so http://localhost:5173.evil.example never matches.
+  if (policy.rendererUrl) {
+    try {
+      if (new URL(url).origin === new URL(policy.rendererUrl).origin) return 'chrome'
+    } catch {
+      return 'untrusted'
+    }
   }
   return 'untrusted'
 }

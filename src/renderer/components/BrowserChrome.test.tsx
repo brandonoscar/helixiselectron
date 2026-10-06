@@ -15,7 +15,6 @@ function makeHelixisMock(): HelixisApi {
     getState: vi.fn().mockResolvedValue({ tabs: [], activeTabId: null }),
     app: { info: vi.fn().mockResolvedValue({}) },
     copilot: { toggle: vi.fn().mockResolvedValue(undefined) },
-    page: { context: vi.fn().mockResolvedValue(null) },
     tabs: {
       create: vi.fn().mockResolvedValue('tab-new'),
       close: vi.fn().mockResolvedValue(undefined),

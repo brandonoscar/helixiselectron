@@ -1,91 +1,145 @@
 import { join } from 'node:path'
-import { WebContentsView, shell, type BaseWindow, type Session } from 'electron'
+import { WebContentsView, app, session, shell, type BaseWindow, type Session, type WebContents } from 'electron'
 import { CHROME_HEIGHT, COPILOT_WIDTH } from '../shared/layout'
 import { isSafeExternalUrl } from './security'
+import { APP_SCHEME, isAppUrl, registerAppProtocol } from './appProtocol'
+import { CopilotNet } from './copilotNet'
+import { ApprovalAlerts } from './approvals'
 
-/** The chat surface the copilot panel hosts — the deployed AgenticHelixis
- *  frontend. Override with HELIXIS_COPILOT_URL (e.g. http://localhost:5173
- *  when developing the chat app locally). */
-const DEFAULT_COPILOT_URL = 'https://agentichelixis.vercel.app'
-function copilotUrl(): string {
-  return process.env.HELIXIS_COPILOT_URL || DEFAULT_COPILOT_URL
+export const COPILOT_HOST = 'copilot'
+export const COPILOT_URL = `${APP_SCHEME}://${COPILOT_HOST}/panel.html`
+
+/** The copilot's own storage partition. Its Supabase session lives here, in
+ *  the panel's localStorage, apart from every website the browser loads. It
+ *  is shared by all windows (private ones too): signing in is about the
+ *  user's Occupella account, not about browsing history. */
+export const COPILOT_PARTITION = 'persist:occupella'
+
+// The panel's scripts, styles and markup all come from app://copilot itself;
+// it makes no network requests of its own (copilotNet.ts does them).
+const COPILOT_CSP = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'"
+].join('; ')
+
+/** Where the bundled panel lives: resources/copilot, copied from the
+ *  helixis-sidebar extension by scripts/sync-copilot.mjs. */
+function copilotRoot(): string {
+  return join(app.getAppPath(), 'resources', 'copilot')
 }
 
-/** The copilot's origin — the ONE remote origin the IPC sender guard grants
- *  page-context access to (see ipc.ts). Falls back to the default origin if
- *  the override is malformed, so a typo'd env var can't widen the guard. */
-export function copilotOrigin(): string {
-  try {
-    return new URL(copilotUrl()).origin
-  } catch {
-    return new URL(DEFAULT_COPILOT_URL).origin
+let copilotSes: Session | null = null
+
+export function copilotSession(): Session {
+  if (!copilotSes) {
+    copilotSes = session.fromPartition(COPILOT_PARTITION)
+    registerAppProtocol(copilotSes, { [COPILOT_HOST]: { root: copilotRoot(), csp: COPILOT_CSP } })
   }
+  return copilotSes
 }
+
+// Keyed by webContents id: the id is stable for the view's lifetime, which
+// object identity of the JS wrapper is not documented to be.
+const panels = new Map<number, CopilotPanel>()
 
 /**
- * The Helixis Copilot side panel: a WebContentsView docked to the right
- * edge, below the chrome, hosting the AgenticHelixis chat surface (the
- * deployed web app — the same /agent/run SSE client as the browser
- * extension panel, with no second chat implementation to maintain).
+ * The Occupella Copilot side panel: the helixis-sidebar Chrome extension's
+ * panel, bundled into the browser and docked to the right edge below the
+ * chrome (Cmd/Ctrl+E). Lazy: the view and its renderer process are only
+ * created on first open.
  *
- * Lazy: the view (and its renderer process) is only created on first
- * toggle. Uses the window's persistent session so the Supabase login
- * survives restarts alongside site logins.
- *
- * Layout contract: when open, the owner gives TabManager a right inset
- * of COPILOT_WIDTH so page content and panel never overlap.
+ * Layout contract: while open, the owner gives TabManager a right inset of
+ * COPILOT_WIDTH so page content and panel never overlap.
  */
 export class CopilotPanel {
-  private window: BaseWindow
-  private session: Session
   private view: WebContentsView | null = null
   private open = false
+  readonly net = new CopilotNet(copilotSession())
+  readonly alerts: ApprovalAlerts
 
-  constructor(window: BaseWindow, session: Session) {
-    this.window = window
-    this.session = session
+  constructor(
+    private window: BaseWindow,
+    /** Owner hook: reveal() asks the window to open the panel and focus. */
+    reveal: () => void
+  ) {
+    this.alerts = ApprovalAlerts.create(window, reveal, () => this.isVisible())
     this.window.on('resize', () => this.layout())
+    this.window.on('closed', () => this.destroy())
+  }
+
+  /** The panel that owns this WebContents, if it is a copilot panel. */
+  static fromWebContents(wc: WebContents): CopilotPanel | null {
+    return panels.get(wc.id) ?? null
   }
 
   isOpen(): boolean {
     return this.open
   }
 
+  private isVisible(): boolean {
+    return this.open && !this.window.isMinimized()
+  }
+
   toggle(): boolean {
-    this.open = !this.open
+    return this.setOpen(!this.open)
+  }
+
+  setOpen(open: boolean): boolean {
+    this.open = open
     if (this.open && !this.view) this.create()
     if (this.view) this.view.setVisible(this.open)
     this.layout()
+    if (this.open) this.view?.webContents.focus()
     return this.open
   }
 
   private create(): void {
-    this.view = new WebContentsView({
+    const view = new WebContentsView({
       webPreferences: {
-        // Same preload as the chrome, so the hosted web app can pull the
-        // active tab's page context (window.helixis.page.context()).
-        preload: join(__dirname, '../preload/index.js'),
-        session: this.session,
+        // A narrow bridge for this page only (src/preload/copilot.ts), not
+        // the browser chrome's window.helixis.
+        preload: join(__dirname, '../preload/copilot.js'),
+        session: copilotSession(),
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false
       }
     })
-    // Keep the panel single-page: external links / OAuth popups go to the
-    // system browser rather than spawning windows inside the panel.
-    // Scheme-validated (2026-07 audit): the panel hosts a REMOTE page, so a
-    // compromised/injected page could window.open any URI — only http(s)/
-    // mailto ever reach the OS; everything else is dropped.
-    this.view.webContents.setWindowOpenHandler(({ url }) => {
+    const wc = view.webContents
+    const wcId = wc.id
+    panels.set(wcId, this)
+
+    // The panel is a single bundled page. It never navigates anywhere else,
+    // so a stray link or an injected redirect cannot turn it into a remote
+    // page that inherits the bridge.
+    wc.on('will-navigate', (e, url) => {
+      if (!isAppUrl(url, COPILOT_HOST)) e.preventDefault()
+    })
+    // External links go to the system browser, scheme-checked (http(s) and
+    // mailto only); nothing opens a window inside the panel.
+    wc.setWindowOpenHandler(({ url }) => {
       if (isSafeExternalUrl(url)) void shell.openExternal(url)
       return { action: 'deny' }
     })
-    this.window.contentView.addChildView(this.view)
-    void this.view.webContents.loadURL(copilotUrl())
+    wc.on('destroyed', () => {
+      panels.delete(wcId)
+      this.net.abortAll()
+    })
+
+    this.window.contentView.addChildView(view)
+    this.view = view
+    void wc.loadURL(COPILOT_URL)
   }
 
   layout(): void {
-    if (!this.view || !this.open) return
+    if (!this.view || !this.open || this.window.isDestroyed()) return
     const [width, height] = this.window.getContentSize()
     this.view.setBounds({
       x: Math.max(0, width - COPILOT_WIDTH),
@@ -96,9 +150,13 @@ export class CopilotPanel {
   }
 
   destroy(): void {
+    this.alerts.dispose()
     if (this.view) {
-      this.window.contentView.removeChildView(this.view)
-      this.view.webContents.close()
+      const wc = this.view.webContents
+      panels.delete(wc.id)
+      this.net.abortAll()
+      if (!this.window.isDestroyed()) this.window.contentView.removeChildView(this.view)
+      if (!wc.isDestroyed()) wc.close()
       this.view = null
     }
     this.open = false

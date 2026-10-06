@@ -49,3 +49,13 @@ jobs:
 
       - name: Boot smoke (headless launch)
         run: xvfb-run -a node scripts/boot-smoke.mjs
+
+      # Package the real app (unsigned Linux dir build) and read the fuses
+      # back out of the binary: proves electron-builder flipped them on what
+      # would ship, not just that the config says so.
+      - name: Package + verify fuses
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npx --no-install electron-builder --linux dir --publish never
+          node scripts/check-fuses.mjs dist/linux-unpacked/helixis

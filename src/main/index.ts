@@ -1,6 +1,11 @@
-import { app, protocol } from 'electron'
+import { join } from 'node:path'
+import { app, protocol, session } from 'electron'
 import { registerIpc } from './ipc'
-import { cdpPortFor } from './security'
+import { registerCopilotIpc } from './copilotIpc'
+import { copilotSession } from './copilot'
+import { APP_SCHEME, registerAppProtocol } from './appProtocol'
+import { installAppPagePermissions } from './permissions'
+import { cdpPortFor, CHROME_HOST } from './security'
 import { initAutoUpdate } from './autoupdate'
 import { installAppMenu } from './menu'
 import { setBookmarksNotifier } from './bookmarks'
@@ -11,16 +16,48 @@ import {
   flushSessions,
   windowCount
 } from './windows'
-import { HELIXIS_SCHEME } from '../shared/layout'
+import { APP_ID, HELIXIS_SCHEME } from '../shared/layout'
 
-// The custom scheme must be registered as privileged before the app is ready so
-// pages served over helixis:// behave like normal secure, standard-origin pages.
+// Custom schemes must be registered as privileged before the app is ready so
+// their pages behave like normal secure, standard-origin pages. helixis:// is
+// the tabs' new-tab/search/error pages; app:// is the app's own UI (the
+// chrome and the copilot, appProtocol.ts). One call: a second one replaces
+// the first.
 protocol.registerSchemesAsPrivileged([
   {
     scheme: HELIXIS_SCHEME,
     privileges: { standard: true, secure: true, supportFetchAPI: true }
+  },
+  {
+    scheme: APP_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true }
   }
 ])
+
+// No app.enableSandbox(): it also overrides --no-sandbox, the documented
+// workaround on Linux machines where Chromium's sandbox cannot start (e.g. the
+// AppImage under Ubuntu 24.04's user-namespace restrictions), which would
+// leave those users unable to launch at all. Every view sets `sandbox: true`
+// itself instead, and security.test.ts fails on any view that does not.
+
+// Windows ties notifications and taskbar badges to this id, and it must equal
+// the installer's shortcut id (electron-builder uses `appId`). Changing either
+// alone silently breaks notifications.
+if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+
+// The chrome UI's CSP. Favicons come from any site (or data: URLs); the UI
+// itself loads only its own bundle.
+const CHROME_CSP = [
+  "default-src 'none'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https: http:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'"
+].join('; ')
 
 // --- Chrome DevTools Protocol -------------------------------------------------
 // Expose CDP so an execution layer (Playwright via chromium.connectOverCDP) can
@@ -80,7 +117,15 @@ if (!gotInstanceLock) {
       copyright: '© Occupella'
     })
 
+    // The chrome views use the default session; it serves only the chrome UI.
+    registerAppProtocol(session.defaultSession, {
+      [CHROME_HOST]: { root: join(__dirname, '../renderer'), csp: CHROME_CSP }
+    })
+    installAppPagePermissions(session.defaultSession)
+    installAppPagePermissions(copilotSession())
+
     registerIpc(cdpPort)
+    registerCopilotIpc()
     setBookmarksNotifier((items) => broadcast('shell:bookmarks', items))
     installAppMenu({
       focused: () => focusedController()?.tabManager ?? null,

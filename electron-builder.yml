@@ -7,6 +7,37 @@ directories:
 files:
   - out/**/*
   - package.json
+  # The built-in copilot: the helixis-sidebar panel, copied by
+  # scripts/sync-copilot.mjs and served at app://copilot (src/main/copilot.ts).
+  - resources/copilot/**/*
+# Electron fuses: switches compiled into the shipped binary, flipped at
+# package time, that no environment variable or flag can turn back on.
+# CI reads them back from the packaged app (scripts/check-fuses.mjs).
+electronFuses:
+  # ELECTRON_RUN_AS_NODE would turn the signed app into a general Node
+  # runtime ("living off the land" malware abuse).
+  runAsNode: false
+  # NODE_OPTIONS / NODE_EXTRA_CA_CERTS would let an env var inject code or a
+  # root certificate into the main process.
+  enableNodeOptionsEnvironmentVariable: false
+  # --inspect / SIGUSR1 would attach a debugger to the main process.
+  enableNodeCliInspectArguments: false
+  # Pages over file:// get privileges a web page never has. Nothing ships
+  # over file:// any more (the chrome and copilot use app://).
+  grantFileProtocolExtraPrivileges: false
+  # Encrypt the cookie store with the OS keychain, like Chrome. ONE-WAY:
+  # turning it off later corrupts every saved login. Existing cookies are
+  # encrypted as they are rewritten. Unsigned macOS builds may show a
+  # keychain prompt after each update until the app is signed.
+  enableCookieEncryption: true
+  # Refuse to run if app.asar was modified (macOS + Windows; electron-builder
+  # embeds the hash), and never load app code from anywhere but app.asar.
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  # Flipping fuses breaks Electron's ad-hoc macOS signature, and Apple
+  # Silicon will not launch an app with a broken signature. Re-sign ad hoc
+  # while builds are unsigned; harmless once a real identity signs after.
+  resetAdHocDarwinSignature: true
 # Auto-update feed. electron-builder writes an ``app-update.yml`` into the
 # packaged app pointing here, and electron-updater (src/main/autoupdate.ts)
 # polls this repo's GitHub Releases for a newer version. The release workflow

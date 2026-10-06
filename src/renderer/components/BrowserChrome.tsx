@@ -6,10 +6,9 @@ import { DownloadsPanel } from './DownloadsPanel'
 import { SettingsPanel } from './SettingsPanel'
 import { Bookmarks } from './Bookmarks'
 
-// The deployed Helixis app (Chat / Inbox / Properties …). The logo/home button
-// opens it as a full browser tab — the hybrid "jump to the full app" entry
-// point. Mirrors copilot.ts's default URL; the env override
-// (HELIXIS_COPILOT_URL) can be threaded through via IPC later.
+// The deployed Occupella web app (Chat / Inbox / Properties …). The logo/home
+// button opens it as a full browser tab — the "jump to the full app" entry
+// point. The docked copilot (Cmd/Ctrl+E) is the bundled extension panel.
 const HELIXIS_APP_URL = 'https://agentichelixis.vercel.app'
 
 interface SuggestRow {
